@@ -24,7 +24,7 @@ export const MarkdownBlockShortcuts = Extension.create({
 
         if (text === '$$' && $from.depth === 1) {
           const blockMath = state.schema.nodes.blockMath
-          const tr = state.tr.replaceWith($from.before(), $from.after(), blockMath.create({ latex: '' }))
+          const tr = state.tr.replaceWith($from.before(), $from.after(), blockMath.create({ latex: '', input: 'latex' }))
           editor.view.dispatch(tr)
           return true
         }

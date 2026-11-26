@@ -59,11 +59,13 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
         <section>
           <h3>Equations</h3>
           <div className="setting-row">
-            <span>Typing style</span>
+            <span>Default typing style</span>
             <Choice name="mathInput" value={s.mathInput} options={[{ value: 'latex', label: 'LaTeX' }, { value: 'visual', label: 'Visual (Word-style)' }]} />
           </div>
           <p className="setting-hint">
-            Visual: type <code>a/b</code>, <code>x^2</code>, <code>sqrt</code>, <code>alpha</code>, <code>int</code> and it turns into maths as you type, like Word. The LaTeX stays one click away. <kbd>Alt</kbd>+<kbd>=</kbd> inserts an equation in either mode.
+            You can use both styles in the same note, one per equation. <code>$…$</code> and <code>$$</code> start a LaTeX equation. <kbd>Alt</kbd>+<kbd>=</kbd> (or{' '}
+            <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>=</kbd> for a display equation) starts a visual one, where <code>a/b</code>, <code>x^2</code>, <code>sqrt</code>, <code>alpha</code> turn into
+            maths as you type, like Word. Each equation remembers its style, and you can switch any time while editing. This setting is the default for equations inserted from the <code>/</code> menu.
           </p>
         </section>
 

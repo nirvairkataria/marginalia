@@ -21,6 +21,9 @@ const BLOCK_MATH_INPUT = /^\$\$([^$]+)\$\$$/
 
 export const EDIT_MATH_EVENT = 'marginalia:edit-math'
 
+/** How an equation is typed: raw LaTeX, or visually like Word's equation editor. */
+export type MathInputStyle = 'latex' | 'visual'
+
 function renderKatex(el: HTMLElement, latex: string, displayMode: boolean) {
   if (!latex.trim()) {
     el.innerHTML = ''
@@ -38,6 +41,7 @@ class MathView implements NodeView {
   private panel: HTMLElement | null = null
   private node: PMNode
   private closing = false
+  private mode: MathInputStyle = 'latex'
   private editor: Editor
   private getPos: () => number | undefined
   private display: boolean
@@ -86,23 +90,39 @@ class MathView implements NodeView {
     raw.value = latex
     raw.placeholder = 'LaTeX'
 
-    const visual = getSettings().mathInput === 'visual'
+    // Each equation remembers how it was written; new ones follow how they were started.
+    this.mode = (this.node.attrs.input as MathInputStyle | null) ?? getSettings().mathInput
     const hint = document.createElement('div')
     hint.className = 'math-hint'
     const hintText = document.createElement('span')
-    hintText.textContent = visual
-      ? 'Type naturally: a/b, x^2, sqrt, alpha, int, sum · Enter to save · Esc to cancel'
-      : 'Enter to save · Esc to cancel · Shift+Enter in the LaTeX box for a new line'
     const toggle = document.createElement('button')
     toggle.type = 'button'
     toggle.className = 'math-toggle'
-    const setRawVisible = (show: boolean) => {
-      raw.hidden = !show
-      toggle.textContent = show ? 'Hide LaTeX' : 'Show LaTeX'
+    const focusInput = () => {
+      if (this.mode === 'latex') {
+        raw.focus()
+        raw.setSelectionRange(raw.value.length, raw.value.length)
+      } else {
+        mf.focus()
+        mf.executeCommand('moveToMathfieldEnd')
+      }
     }
-    setRawVisible(!visual)
+    const applyMode = (m: MathInputStyle) => {
+      this.mode = m
+      raw.hidden = m === 'visual'
+      toggle.textContent = m === 'visual' ? 'Type LaTeX instead' : 'Type visually instead'
+      toggle.title = m === 'visual' ? 'Show the LaTeX box and type there' : 'Hide the LaTeX box and type into the formula (Word-style)'
+      hintText.textContent =
+        m === 'visual'
+          ? 'Type naturally: a/b, x^2, sqrt, alpha, int, sum (\\ for a LaTeX command) · Enter to save · Esc to cancel'
+          : 'LaTeX · Enter to save · Shift+Enter for a new line · Esc to cancel'
+    }
+    applyMode(this.mode)
     toggle.addEventListener('mousedown', (e) => e.preventDefault())
-    toggle.addEventListener('click', () => setRawVisible(raw.hidden === true))
+    toggle.addEventListener('click', () => {
+      applyMode(this.mode === 'latex' ? 'visual' : 'latex')
+      focusInput()
+    })
     hint.append(hintText, toggle)
 
     panel.append(mf, raw, hint)
@@ -111,8 +131,11 @@ class MathView implements NodeView {
     this.panel = panel
 
     const preview = (value: string) => renderKatex(this.renderEl, value, this.display)
+    // Current value from whichever input is in use (MathLive's own value can contain
+    // \placeholder{} slots, and its input event can lag behind the last keystroke).
+    const current = () => (this.mode === 'visual' ? mf.getValue('latex-without-placeholders') : raw.value)
     mf.addEventListener('input', () => {
-      raw.value = mf.value
+      raw.value = mf.getValue('latex-without-placeholders')
       preview(mf.value)
     })
     raw.addEventListener('input', () => {
@@ -126,7 +149,7 @@ class MathView implements NodeView {
         this.close(null)
       } else if (e.key === 'Enter' && !(e.shiftKey && e.target === raw)) {
         e.preventDefault()
-        this.close(raw.value)
+        this.close(current())
       }
     }
     panel.addEventListener('keydown', onKey, true)
@@ -135,7 +158,7 @@ class MathView implements NodeView {
       if (next && panel.contains(next)) return
       // MathLive moves focus around internally; re-check after it settles.
       setTimeout(() => {
-        if (this.panel && !this.panel.contains(document.activeElement)) this.close(raw.value)
+        if (this.panel && !this.panel.contains(document.activeElement)) this.close(current())
       }, 0)
     })
 
@@ -147,8 +170,7 @@ class MathView implements NodeView {
         const overflow = panel.getBoundingClientRect().right - limit
         if (overflow > 0) panel.style.left = `${-overflow}px`
       }
-      mf.focus()
-      mf.executeCommand('moveToMathfieldEnd')
+      focusInput()
     })
   }
 
@@ -170,8 +192,8 @@ class MathView implements NodeView {
       tr = tr.delete(pos, pos + this.node.nodeSize)
       after = pos
     } else {
-      if (latex !== null && latex !== this.node.attrs.latex) {
-        tr = tr.setNodeMarkup(pos, undefined, { ...this.node.attrs, latex })
+      if (latex !== null && (latex !== this.node.attrs.latex || this.mode !== this.node.attrs.input)) {
+        tr = tr.setNodeMarkup(pos, undefined, { ...this.node.attrs, latex, input: this.mode })
       } else {
         renderKatex(this.renderEl, this.node.attrs.latex, this.display)
       }
@@ -226,6 +248,12 @@ const latexAttribute = {
     parseHTML: (el: HTMLElement) => el.getAttribute('data-latex') ?? el.textContent ?? '',
     renderHTML: (attrs: Record<string, unknown>) => ({ 'data-latex': attrs.latex }),
   },
+  /** 'latex' | 'visual' | null (null = use the default from Settings) */
+  input: {
+    default: null,
+    parseHTML: (el: HTMLElement) => el.getAttribute('data-input'),
+    renderHTML: (attrs: Record<string, unknown>) => (attrs.input ? { 'data-input': attrs.input } : {}),
+  },
 }
 
 export const InlineMath = Node.create({
@@ -255,7 +283,7 @@ export const InlineMath = Node.create({
         find: INLINE_MATH_INPUT,
         handler: ({ state, range, match }) => {
           const start = range.from + match[1].length
-          state.tr.replaceWith(start, range.to, this.type.create({ latex: match[2] }))
+          state.tr.replaceWith(start, range.to, this.type.create({ latex: match[2], input: 'latex' }))
         },
       }),
     ]
@@ -264,8 +292,10 @@ export const InlineMath = Node.create({
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => enterOpensMath(editor, this.name),
-      // Word's "insert equation" shortcut
-      'Alt-=': ({ editor }) => editor.chain().focus().insertContent({ type: this.name, attrs: { latex: '' } }).run(),
+      // Word's "insert equation" shortcut: starts a visual (Word-style) equation
+      'Alt-=': ({ editor }) => editor.chain().focus().insertContent({ type: this.name, attrs: { latex: '', input: 'visual' } }).run(),
+      // ...and its display-equation sibling
+      'Alt-Shift-=': ({ editor }) => editor.chain().focus().insertContent({ type: 'blockMath', attrs: { latex: '', input: 'visual' } }).run(),
     }
   },
 })
@@ -298,7 +328,7 @@ export const BlockMath = Node.create({
         handler: ({ state, range, match }) => {
           const $from = state.doc.resolve(range.from)
           if ($from.parent.type.name !== 'paragraph' || $from.depth !== 1) return null
-          state.tr.replaceWith($from.before(), $from.after(), this.type.create({ latex: match[1] }))
+          state.tr.replaceWith($from.before(), $from.after(), this.type.create({ latex: match[1], input: 'latex' }))
         },
       }),
     ]

@@ -31,7 +31,7 @@ export const MathInput = forwardRef<MathInputHandle, Props>(function MathInput(p
     mf.className = 'graph-mf'
     mf.value = cbs.current.value
     if (cbs.current.placeholder) mf.placeholder = cbs.current.placeholder
-    mf.addEventListener('input', () => cbs.current.onChange(mf.value))
+    mf.addEventListener('input', () => cbs.current.onChange(mf.getValue('latex-without-placeholders')))
     mf.addEventListener(
       'keydown',
       (e) => {
