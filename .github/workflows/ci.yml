@@ -28,6 +28,8 @@ jobs:
   windows:
     name: Windows installer
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,10 +42,17 @@ jobs:
           workspaces: src-tauri
       - run: npm ci
       - run: npm run app:build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: marginalia-windows
-          path: |
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/msi/*.msi
-          if-no-files-found: error
+      # Builds from main are published to a rolling "latest" pre-release.
+      # (Releases don't count against the account's Actions artifact storage.)
+      - name: Publish to the "latest" pre-release
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view latest >/dev/null 2>&1; then
+            gh release create latest --prerelease --target "$GITHUB_SHA" --title "Latest build" --notes "Automatic build of main."
+          fi
+          gh release upload latest src-tauri/target/release/bundle/nsis/*.exe src-tauri/target/release/bundle/msi/*.msi --clobber
+          gh release edit latest --notes "Automatic build of main at ${GITHUB_SHA::7} ($(date -u +%Y-%m-%d))."

@@ -1,5 +1,17 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import type { Editor } from '@tiptap/react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { newCanvasId } from './editor/canvasBlock'
 import { NoteEditor } from './editor/NoteEditor'
+import { handleInkKeys } from './ink/input'
+import { InkOverlay } from './ink/InkOverlay'
+import { redo, undo } from './ink/undo'
+import { setPageZoom } from './ink/zoom'
+import { activeTool, useSettings } from './lib/settings'
+import { setRunnerOpen, useRunner } from './runner/runner'
+import { GearIcon, TerminalIcon } from './ui/icons'
+import { InkToolbar } from './ui/InkToolbar'
+import { OutputPanel } from './ui/OutputPanel'
+import { SettingsDialog } from './ui/SettingsDialog'
 import { createNote, deleteNote, ensureFirstNote, useNoteDoc, useNotes, type NoteMeta } from './lib/notes'
 
 /**
@@ -47,13 +59,16 @@ function Sidebar({
   onSelect,
   onCreate,
   onDelete,
+  onSettings,
 }: {
   notes: NoteMeta[]
   activeId: string | null
   onSelect: (id: string) => void
   onCreate: () => void
   onDelete: (note: NoteMeta) => void
+  onSettings: () => void
 }) {
+  const runnerOpen = useRunner().open
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -78,6 +93,14 @@ function Sidebar({
           </div>
         ))}
       </nav>
+      <div className="sidebar-footer">
+        <button className="footer-btn" onClick={onSettings}>
+          <GearIcon /> Settings
+        </button>
+        <button className="footer-btn" onClick={() => setRunnerOpen(!runnerOpen)}>
+          <TerminalIcon /> Output
+        </button>
+      </div>
     </aside>
   )
 }
@@ -103,15 +126,22 @@ function usePageZoom() {
 
 export default function App() {
   const notes = useNotes()
+  const settings = useSettings()
   const [ready, setReady] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 720)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [editor, setEditor] = useState<Editor | null>(null)
   const { scrollerRef, zoom } = usePageZoom()
+  const pageRef = useRef<HTMLDivElement>(null)
   const ydoc = useNoteDoc(activeId)
+  const inkTool = activeTool(settings)
 
   useEffect(() => {
     ensureFirstNote().then(() => setReady(true))
   }, [])
+
+  useEffect(() => setPageZoom(zoom), [zoom])
 
   // Keep a valid note selected.
   useEffect(() => {
@@ -126,11 +156,37 @@ export default function App() {
     if (activeId) writeLastNote(activeId)
   }, [activeId])
 
+  // Ink shortcuts, and undo/redo when focus is outside the text editor.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (handleInkKeys(e)) {
+        e.preventDefault()
+        e.stopPropagation()
+        return
+      }
+      const inText = (e.target as HTMLElement | null)?.closest?.('.ProseMirror, input, textarea, math-field')
+      if (inText || !(e.ctrlKey || e.metaKey)) return
+      const k = e.key.toLowerCase()
+      if (k === 'z' && !e.shiftKey) undo()
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) redo()
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+
   const handleDelete = async (note: NoteMeta) => {
     if (!window.confirm(`Delete “${note.title}”? This cannot be undone.`)) return
     if (note.id === activeId) setActiveId(null)
     await deleteNote(note.id)
   }
+
+  const insertCanvas = useCallback(() => {
+    editor?.chain().focus().insertContent([{ type: 'canvasBlock', attrs: { id: newCanvasId() } }, { type: 'paragraph' }]).run()
+  }, [editor])
+
+  const pageClass = ['page', inkTool ? `ink-active ink-${inkTool.kind}` : '', inkTool && settings.touchDraws ? 'touch-draws' : ''].filter(Boolean).join(' ')
 
   return (
     <div className={`app${sidebarOpen ? '' : ' sidebar-collapsed'}`}>
@@ -140,22 +196,35 @@ export default function App() {
         onSelect={setActiveId}
         onCreate={() => setActiveId(createNote().id)}
         onDelete={handleDelete}
+        onSettings={() => setSettingsOpen(true)}
       />
       <main className="workspace">
-        <button
-          className="sidebar-toggle"
-          onClick={() => setSidebarOpen((o) => !o)}
-          aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-          title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
-        >
-          ☰
-        </button>
-        <div className="scroller" ref={scrollerRef}>
-          <div className="page" style={{ width: PAGE_WIDTH, zoom }}>
-            {activeId && ydoc ? <NoteEditor key={activeId} noteId={activeId} ydoc={ydoc} /> : <div className="page-loading" />}
+        <div className={`workspace-main tb-${settings.toolbarPosition}`}>
+          <button
+            className="sidebar-toggle"
+            onClick={() => setSidebarOpen((o) => !o)}
+            aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+            title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+          >
+            ☰
+          </button>
+          <InkToolbar onInsertCanvas={insertCanvas} />
+          <div className="scroller" ref={scrollerRef}>
+            <div className={pageClass} ref={pageRef} style={{ width: PAGE_WIDTH, zoom }}>
+              {activeId && ydoc ? (
+                <>
+                  <NoteEditor key={activeId} noteId={activeId} ydoc={ydoc} onReady={setEditor} />
+                  <InkOverlay key={`ink-${activeId}`} doc={ydoc} editor={editor} pageRef={pageRef} />
+                </>
+              ) : (
+                <div className="page-loading" />
+              )}
+            </div>
           </div>
         </div>
+        <OutputPanel />
       </main>
+      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   )
 }

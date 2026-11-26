@@ -2,14 +2,14 @@ import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import {
   bracketMatching,
-  defaultHighlightStyle,
+  HighlightStyle,
   indentOnInput,
   LanguageDescription,
   syntaxHighlighting,
 } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { Compartment, EditorState } from '@codemirror/state'
-import { oneDarkHighlightStyle } from '@codemirror/theme-one-dark'
+import { tags as t } from '@lezer/highlight'
 import {
   drawSelection,
   EditorView as CMView,
@@ -23,6 +23,7 @@ import { CodeBlock } from '@tiptap/extension-code-block'
 import type { Node as PMNode } from '@tiptap/pm/model'
 import { Selection, TextSelection, type EditorState as PMState } from '@tiptap/pm/state'
 import type { EditorView, NodeView } from '@tiptap/pm/view'
+import { runCode, runnableLang } from '../runner/runner'
 
 /**
  * Code blocks rendered with a real CodeMirror 6 editor (syntax highlighting,
@@ -33,7 +34,24 @@ import type { EditorView, NodeView } from '@tiptap/pm/view'
 
 const LANGUAGE_NAMES = languages.flatMap((l) => [l.name.toLowerCase(), ...l.alias]).sort()
 
-const prefersDark = () => window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+/** Syntax colours come from CSS variables, so they follow light/dark theme switches. */
+const highlightStyle = HighlightStyle.define([
+  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword], color: 'var(--code-keyword)' },
+  { tag: [t.string, t.special(t.string), t.regexp], color: 'var(--code-string)' },
+  { tag: [t.number, t.bool, t.null, t.atom], color: 'var(--code-number)' },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--code-comment)', fontStyle: 'italic' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.definition(t.function(t.variableName))], color: 'var(--code-function)' },
+  { tag: [t.typeName, t.className, t.namespace], color: 'var(--code-type)' },
+  { tag: [t.definition(t.variableName), t.definition(t.propertyName)], color: 'var(--code-def)' },
+  { tag: [t.propertyName, t.attributeName], color: 'var(--code-property)' },
+  { tag: [t.operator, t.punctuation], color: 'var(--code-punct)' },
+  { tag: [t.meta, t.annotation], color: 'var(--code-meta)' },
+  { tag: t.heading, fontWeight: 'bold', color: 'var(--code-keyword)' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strong, fontWeight: 'bold' },
+  { tag: t.link, textDecoration: 'underline' },
+  { tag: t.invalid, color: 'var(--code-invalid)' },
+])
 
 class CodeMirrorView implements NodeView {
   dom: HTMLElement
@@ -41,6 +59,7 @@ class CodeMirrorView implements NodeView {
   private updating = false
   private language = new Compartment()
   private langInput: HTMLInputElement
+  private runButton: HTMLButtonElement
   private loadedLanguage: string | null | undefined
 
   private node: PMNode
@@ -63,7 +82,7 @@ class CodeMirrorView implements NodeView {
           indentOnInput(),
           bracketMatching(),
           closeBrackets(),
-          syntaxHighlighting(prefersDark() ? oneDarkHighlightStyle : defaultHighlightStyle),
+          syntaxHighlighting(highlightStyle),
           this.language.of([]),
           CMView.updateListener.of((update) => this.forwardUpdate(update)),
         ],
@@ -89,10 +108,30 @@ class CodeMirrorView implements NodeView {
         this.cm.focus()
       }
     })
-    header.appendChild(this.langInput)
+    this.runButton = document.createElement('button')
+    this.runButton.className = 'code-run'
+    this.runButton.type = 'button'
+    this.runButton.title = 'Run (Shift+Enter)'
+    this.runButton.innerHTML = '<span aria-hidden="true">▶</span> Run'
+    this.runButton.addEventListener('mousedown', (e) => e.preventDefault())
+    this.runButton.addEventListener('click', () => this.run())
+    header.append(this.langInput, this.runButton)
+    this.syncChrome()
 
     this.dom.append(header, this.cm.dom)
     this.loadLanguage(node.attrs.language)
+  }
+
+  private syncChrome() {
+    this.runButton.hidden = !runnableLang(this.node.attrs.language)
+    if (this.node.attrs.bid) this.dom.dataset.bid = this.node.attrs.bid
+  }
+
+  private run() {
+    const lang = runnableLang(this.node.attrs.language)
+    if (!lang) return false
+    runCode(lang, this.cm.state.doc.toString())
+    return true
   }
 
   private setLanguageAttr(language: string | null) {
@@ -149,6 +188,7 @@ class CodeMirrorView implements NodeView {
       { key: 'ArrowDown', run: () => this.maybeEscape('line', 1) },
       { key: 'ArrowRight', run: () => this.maybeEscape('char', 1) },
       { key: 'Mod-Enter', run: () => this.exitBelow() },
+      { key: 'Shift-Enter', run: () => this.run() },
       { key: 'Mod-z', run: () => this.editor.commands.undo() },
       { key: 'Mod-y', run: () => this.editor.commands.redo() },
       { key: 'Shift-Mod-z', run: () => this.editor.commands.redo() },
@@ -203,6 +243,7 @@ class CodeMirrorView implements NodeView {
   update(node: PMNode) {
     if (node.type !== this.node.type) return false
     this.node = node
+    this.syncChrome()
     if (node.attrs.language !== this.loadedLanguage) {
       if (document.activeElement !== this.langInput) this.langInput.value = node.attrs.language ?? ''
       this.loadLanguage(node.attrs.language)
