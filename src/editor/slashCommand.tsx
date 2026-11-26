@@ -4,6 +4,7 @@ import { ReactRenderer } from '@tiptap/react'
 import Suggestion, { exitSuggestion, type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion'
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { newCanvasId } from './canvasBlock'
+import { graphContent } from './graphBlock'
 
 /**
  * The `/` command menu. This is where blocks with no Markdown equivalent live
@@ -36,6 +37,7 @@ export const SLASH_ITEMS: SlashItem[] = [
   { title: 'Inline math', description: 'Math inside a sentence', icon: '𝑥²', shortcut: '$…$', keywords: ['math', 'latex', 'inline', 'formula'], run: (e, r) => chainFor(e, r).insertContent({ type: 'inlineMath', attrs: { latex: '' } }).run() },
   { title: 'Canvas', description: 'Drawing area, full width', icon: '✎', keywords: ['draw', 'sketch', 'ink', 'canvas', 'diagram'], run: (e, r) => chainFor(e, r).insertContent([{ type: 'canvasBlock', attrs: { id: newCanvasId() } }, { type: 'paragraph' }]).run() },
   { title: 'Canvas beside text', description: 'Drawing on the right, text wraps around it', icon: '◧', keywords: ['draw', 'sketch', 'float', 'wrap', 'canvas', 'figure'], run: (e, r) => chainFor(e, r).insertContent([{ type: 'canvasBlock', attrs: { id: newCanvasId(), align: 'right', width: 300, height: 220 } }, { type: 'paragraph' }]).run() },
+  { title: 'Graph', description: 'Desmos-style graphing calculator', icon: '📈', keywords: ['graph', 'plot', 'desmos', 'function', 'chart', 'calculator'], run: (e, r) => chainFor(e, r).insertContent(graphContent()).run() },
   { title: 'Divider', description: 'Horizontal rule', icon: '—', shortcut: '---', keywords: ['hr', 'rule', 'separator', 'line'], run: (e, r) => chainFor(e, r).setHorizontalRule().run() },
 ]
 

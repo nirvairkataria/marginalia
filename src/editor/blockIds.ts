@@ -20,6 +20,7 @@ export const BLOCK_ID_TYPES = [
   'blockMath',
   'horizontalRule',
   'canvasBlock',
+  'graphBlock',
 ]
 
 const newBid = () => Math.random().toString(36).slice(2, 10)

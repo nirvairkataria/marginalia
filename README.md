@@ -39,6 +39,12 @@ Marginalia combines a structured, StemPad-style note editor (inline LaTeX, displ
   - The pen draws even in text mode (optional), and the pen's eraser end erases.
   - Fingers scroll, with palm rejection.
   - Ctrl+Z undoes text and ink together.
+- **Graphs (`/graph`).** A Desmos-style graphing calculator inside your notes, fully offline.
+  - Type expressions in a list: `y=x^2`, `x=y^2`, `x^2+y^2=4`, `r=2\cos(3\theta)`, `(\cos t, \sin t)`, points, inequalities (shaded), domain restrictions `y=x^2\{0<x<2\}`.
+  - Define and reuse things: `f(x)=…`, constants, `f'(x)`, sums, integrals, `\frac{d}{dx}`.
+  - Undefined letters offer **add slider** buttons. Sliders can animate, and points like `(a,b)` can be dragged to move their sliders.
+  - Click a curve to see its roots, extrema and intersections, plus a trace point.
+  - Pan, zoom, full screen, degrees/radians, dark mode.
 - **Run code.** ▶ Run (or **Shift+Enter**) on a Python or JavaScript block. Python runs offline in a bundled interpreter (Pyodide); numpy, matplotlib and other packages download on first import. Output, including plots, appears in a side panel and is never saved into the note.
 - **Code blocks.** Syntax highlighting, auto-indent, bracket matching, Tab indents, and a language picker. **Ctrl+Enter** exits the block.
 - **Infinite page.** One continuous, fixed-width page (8.5in wide) with no page breaks. Fixed width keeps future ink annotations anchored exactly and lets a later PDF export slice the strip into pages cleanly.
@@ -60,6 +66,7 @@ See [docs/ROADMAP.md](docs/ROADMAP.md), including the plans for Desmos-style gra
 | Data model | [Yjs](https://yjs.dev) CRDT | Offline-first; devices merge edits automatically, so sync is "add a provider", not a rewrite |
 | Storage | IndexedDB via `y-indexeddb` | One Yjs doc per note + an index doc |
 | Ink | Canvas 2D + [perfect-freehand](https://github.com/steveruizok/perfect-freehand) | Pressure-shaped strokes, stored as vector points in the same Yjs doc |
+| Graphs | [Compute Engine](https://cortexjs.io/compute-engine/) (parse) + [JSXGraph](https://jsxgraph.org) (draw) | LaTeX expressions compiled to fast JS functions, drawn on an interactive board |
 | Code running | [Pyodide](https://pyodide.org) + Web Workers | Python/JS run off the UI thread, fully local |
 
 Source layout:
@@ -81,6 +88,7 @@ src/
     input.ts              pointer routing: pen vs touch vs mouse, palm rejection
     render.ts             stroke shapes per pen type, dark-mode colours, hit testing
     InkOverlay.tsx        ink layer over (and highlighter layer under) the page
+  graph/                  graphing calculator: expression compiler, evaluator, board, UI
   runner/                 Python (Pyodide) and JavaScript workers, output store
   ui/                     toolbar, settings, output panel
 src-tauri/                Windows desktop app (Rust)

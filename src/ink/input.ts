@@ -86,6 +86,8 @@ export function attachInkInput(page: HTMLElement, pageSurface: () => InkSurface 
     const tool = toolFor(e)
     if (!tool) return
     if (active) return
+    // Graphs: with the text tool selected, the pen pans/drags the graph instead of inking.
+    if (!activeTool(s) && !isEraserEnd(e) && (e.target as HTMLElement).closest('[data-ink-passive]')) return
     e.preventDefault()
     e.stopPropagation()
     const surface = canvasSurfaceAt(e.clientX, e.clientY) ?? pageSurface()
