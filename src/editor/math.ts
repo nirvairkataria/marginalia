@@ -4,6 +4,7 @@ import { NodeSelection, Selection } from '@tiptap/pm/state'
 import type { NodeView } from '@tiptap/pm/view'
 import katex from 'katex'
 import { MathfieldElement } from 'mathlive'
+import { getSettings } from '../lib/settings'
 
 /**
  * Inline math  ($x^2$)  and display math  ($$ + Enter).
@@ -53,6 +54,7 @@ class MathView implements NodeView {
     this.renderEl.className = 'math-render'
     this.dom.appendChild(this.renderEl)
     renderKatex(this.renderEl, node.attrs.latex, display)
+    if (node.attrs.bid) this.dom.dataset.bid = node.attrs.bid
 
     this.dom.addEventListener('mousedown', (e) => {
       if (this.panel?.contains(e.target as globalThis.Node)) return
@@ -84,9 +86,24 @@ class MathView implements NodeView {
     raw.value = latex
     raw.placeholder = 'LaTeX'
 
+    const visual = getSettings().mathInput === 'visual'
     const hint = document.createElement('div')
     hint.className = 'math-hint'
-    hint.textContent = 'Enter to save · Esc to cancel · Shift+Enter in the LaTeX box for a new line'
+    const hintText = document.createElement('span')
+    hintText.textContent = visual
+      ? 'Type naturally: a/b, x^2, sqrt, alpha, int, sum · Enter to save · Esc to cancel'
+      : 'Enter to save · Esc to cancel · Shift+Enter in the LaTeX box for a new line'
+    const toggle = document.createElement('button')
+    toggle.type = 'button'
+    toggle.className = 'math-toggle'
+    const setRawVisible = (show: boolean) => {
+      raw.hidden = !show
+      toggle.textContent = show ? 'Hide LaTeX' : 'Show LaTeX'
+    }
+    setRawVisible(!visual)
+    toggle.addEventListener('mousedown', (e) => e.preventDefault())
+    toggle.addEventListener('click', () => setRawVisible(raw.hidden === true))
+    hint.append(hintText, toggle)
 
     panel.append(mf, raw, hint)
     this.dom.appendChild(panel)
@@ -169,6 +186,7 @@ class MathView implements NodeView {
     if (node.type !== this.node.type) return false
     this.node = node
     if (!this.panel) renderKatex(this.renderEl, node.attrs.latex, this.display)
+    if (node.attrs.bid) this.dom.dataset.bid = node.attrs.bid
     return true
   }
 
@@ -244,7 +262,11 @@ export const InlineMath = Node.create({
   },
 
   addKeyboardShortcuts() {
-    return { Enter: ({ editor }) => enterOpensMath(editor, this.name) }
+    return {
+      Enter: ({ editor }) => enterOpensMath(editor, this.name),
+      // Word's "insert equation" shortcut
+      'Alt-=': ({ editor }) => editor.chain().focus().insertContent({ type: this.name, attrs: { latex: '' } }).run(),
+    }
   },
 })
 

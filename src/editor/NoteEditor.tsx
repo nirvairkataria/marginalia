@@ -6,7 +6,10 @@ import { EditorContent, useEditor, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef } from 'react'
 import type * as Y from 'yjs'
+import { bindUndoEditor } from '../ink/undo'
 import { getNote, updateNote } from '../lib/notes'
+import { BlockIds } from './blockIds'
+import { CanvasBlock } from './canvasBlock'
 import { CodeBlockCM, ensureLanguageDatalist } from './codeBlock'
 import { MarkdownBlockShortcuts } from './markdownShortcuts'
 import { BlockMath, InlineMath } from './math'
@@ -26,7 +29,7 @@ function deriveTitle(editor: Editor): string {
   return title.slice(0, 80) || 'Untitled'
 }
 
-export function NoteEditor({ noteId, ydoc }: { noteId: string; ydoc: Y.Doc }) {
+export function NoteEditor({ noteId, ydoc, onReady }: { noteId: string; ydoc: Y.Doc; onReady?: (editor: Editor | null) => void }) {
   const titleTimer = useRef<number | undefined>(undefined)
 
   const editor = useEditor(
@@ -47,6 +50,8 @@ export function NoteEditor({ noteId, ydoc }: { noteId: string; ydoc: Y.Doc }) {
         CodeBlockCM,
         InlineMath,
         BlockMath,
+        CanvasBlock.configure({ doc: ydoc }),
+        BlockIds,
         MarkdownBlockShortcuts,
         SlashCommand,
       ],
@@ -69,6 +74,15 @@ export function NoteEditor({ noteId, ydoc }: { noteId: string; ydoc: Y.Doc }) {
     },
     [ydoc, noteId],
   )
+
+  useEffect(() => {
+    onReady?.(editor)
+    bindUndoEditor(editor)
+    return () => {
+      onReady?.(null)
+      bindUndoEditor(null)
+    }
+  }, [editor, onReady])
 
   useEffect(() => {
     ensureLanguageDatalist()
