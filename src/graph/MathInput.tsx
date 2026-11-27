@@ -3,6 +3,32 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 
 /** A MathLive field for one expression row (always editable, Desmos style). */
 
+/**
+ * MathLive tracks focus with an internal `blurred` flag that only updates on a
+ * real blur event. It can go stale (a new field starts "focused"; moving focus
+ * to a plain input isn't always noticed), after which clicks and focus() do
+ * nothing. Correct the flag whenever the field isn't actually focused.
+ */
+export function resyncMathfieldFocus(mf: MathfieldElement) {
+  const inner = (mf as unknown as { _mathfield?: { blurred?: boolean; focusBlurInProgress?: boolean } })._mathfield
+  if (!inner || document.activeElement === mf) return
+  // If a focus attempt was interrupted (field re-created within MathLive's 60ms
+  // focus timer), its "in progress" flag is left on and blocks every later focus.
+  inner.focusBlurInProgress = false
+  if (inner.blurred === false) inner.blurred = true
+}
+
+/** Words typed as functions in graph rows (shown upright, and not split by MathLive's \\tan, \\sin… shortcuts). */
+const GRAPH_WORDS = ['tangent', 'distance', 'segment', 'polygon', 'midpoint', 'circle', 'line', 'ray', 'mean', 'median', 'total', 'length', 'stdev', 'count']
+
+/** Keys that end a subscript, like Desmos: y_1 + … , x_1 ~ … */
+const SUBSCRIPT_ENDERS = new Set(['+', '-', '=', '~', '<', '>', ',', '*', '/', ' ', '(', ')', '^', '!'])
+
+function inSubscript(mf: MathfieldElement): boolean {
+  const model = (mf as unknown as { _mathfield?: { model?: { position: number; at(p: number): { parentBranch?: string } | undefined } } })._mathfield?.model
+  return model?.at(model.position)?.parentBranch === 'subscript'
+}
+
 export interface MathInputHandle {
   focus: (atEnd?: boolean) => void
 }
@@ -35,6 +61,14 @@ export const MathInput = forwardRef<MathInputHandle, Props>(function MathInput(p
     mf.addEventListener(
       'keydown',
       (e) => {
+        if (SUBSCRIPT_ENDERS.has(e.key) && !e.ctrlKey && !e.metaKey && inSubscript(mf)) mf.executeCommand('moveAfterParent')
+        if (e.key === '~') {
+          // Regression: y_1 ~ m x_1 + b
+          e.preventDefault()
+          e.stopPropagation()
+          mf.insert('\\sim ')
+          return
+        }
         if (e.key === 'Enter') {
           e.preventDefault()
           e.stopPropagation()
@@ -54,8 +88,23 @@ export const MathInput = forwardRef<MathInputHandle, Props>(function MathInput(p
       }
     })
     mf.addEventListener('focus', () => cbs.current.onFocus?.())
+    // MathLive can miss a blur (e.g. when focus moves to a table cell) and then
+    // ignore clicks because it thinks it's still focused: re-sync before a click.
+    mf.addEventListener(
+      'pointerdown',
+      () => resyncMathfieldFocus(mf),
+      { capture: true },
+    )
+    // Shortcut options can only be set once MathLive has mounted the field.
+    const addShortcuts = () => {
+      mf.inlineShortcuts = { ...mf.inlineShortcuts, ...Object.fromEntries(GRAPH_WORDS.map((w) => [w, `\\operatorname{${w}}`])) }
+    }
+    mf.addEventListener('mount', addShortcuts, { once: true })
     host.current!.appendChild(mf)
     field.current = mf
+    // MathLive starts out thinking it has focus (hasFocus = !blurred), which makes
+    // clicks and focus() no-ops while another input is focused. Reset that state.
+    requestAnimationFrame(() => resyncMathfieldFocus(mf))
     return () => {
       mf.remove()
       field.current = null
@@ -79,7 +128,7 @@ export const MathInput = forwardRef<MathInputHandle, Props>(function MathInput(p
         if (!mf) return
         // MathLive reports a never-focused field as focused (hasFocus = !blurred),
         // which makes focus() a no-op; reset that state first.
-        if (mf.hasFocus() && document.activeElement !== mf) mf.blur()
+        resyncMathfieldFocus(mf)
         mf.focus()
         if (mf.hasFocus() && document.activeElement === mf) {
           if (atEnd) mf.executeCommand('moveToMathfieldEnd')

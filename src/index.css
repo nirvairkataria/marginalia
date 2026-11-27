@@ -2624,3 +2624,118 @@ dialog.settings::backdrop {
   font-size: 16px;
   padding: 6px 2px;
 }
+
+/* ---------- Graph tables, regressions, add menu ---------- */
+
+.graph-add-menu {
+  position: relative;
+}
+
+.graph-add-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg);
+  border-radius: 8px;
+  box-shadow: var(--shadow-menu);
+  padding: 4px;
+  min-width: 120px;
+}
+
+.graph-add-pop button {
+  border: 0;
+  background: none;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.graph-add-pop button:hover {
+  background: var(--accent-soft);
+}
+
+.graph-table {
+  border-collapse: collapse;
+  margin: 4px 0;
+  font-size: 13px;
+}
+
+.graph-table th,
+.graph-table td {
+  border: 1px solid var(--rule);
+  padding: 0;
+  min-width: 58px;
+  position: relative;
+}
+
+.graph-table th {
+  background: var(--code-bg);
+}
+
+.graph-table input {
+  width: 64px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  padding: 4px 6px;
+  text-align: right;
+}
+
+.graph-table th input {
+  font-family: var(--font-body);
+  font-style: italic;
+  text-align: center;
+}
+
+.graph-table input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.graph-table .col-add,
+.graph-table td:last-child {
+  border: 0;
+  min-width: 0;
+  background: none;
+}
+
+.graph-table .col-add button,
+.graph-table .col-x {
+  border: 0;
+  background: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.graph-table .col-x {
+  position: absolute;
+  right: -2px;
+  top: -2px;
+  font-size: 11px;
+  opacity: 0;
+}
+
+.graph-table th:hover .col-x {
+  opacity: 1;
+}
+
+.graph-regression {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 0 10px 6px 46px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.graph-regression .r2 {
+  color: var(--ink-faint);
+}

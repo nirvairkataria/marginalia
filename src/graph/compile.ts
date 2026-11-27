@@ -10,11 +10,19 @@ export type Json = any
 
 export type Fn = (args: number[]) => number
 
+export type Pt = [number, number]
+
 export interface Scope {
   values: Map<string, number>
   fns: Map<string, (...args: number[]) => number>
+  /** Named points, e.g. A = (1, 2). Functions so they follow sliders. */
+  points: Map<string, () => Pt>
+  /** Lists: table columns and x_1 = [1, 2, 3] */
+  lists: Map<string, number[]>
   degrees: boolean
 }
+
+export const newScope = (degrees = false): Scope => ({ values: new Map(), fns: new Map(), points: new Map(), lists: new Map(), degrees })
 
 export class GraphError extends Error {}
 
@@ -189,7 +197,11 @@ export function compile(j: Json, params: string[], scope: Scope): Fn {
       }
       return () => {
         const v = scope.values.get(node)
-        if (v === undefined) throw new GraphError(`“${pretty(node)}” is not defined`)
+        if (v === undefined) {
+          if (scope.points.has(node)) throw new GraphError(`“${pretty(node)}” is a point; use ${pretty(node)}.x or ${pretty(node)}.y`)
+          if (scope.lists.has(node)) throw new GraphError(`“${pretty(node)}” is a list; try mean(${pretty(node)})`)
+          throw new GraphError(`“${pretty(node)}” is not defined`)
+        }
         return v
       }
     }
@@ -219,6 +231,27 @@ export function compile(j: Json, params: string[], scope: Scope): Fn {
     }
 
     const fs = (): Fn[] => args.map((a) => c(a, ps))
+
+    if (h === 'PointX' || h === 'PointY') {
+      const p = compilePoint(args[0], ps, scope)
+      const i = h === 'PointX' ? 0 : 1
+      return (a) => p(a)[i]
+    }
+    if (h === 'Distance' && args.length === 2) {
+      const p = compilePoint(args[0], ps, scope)
+      const q = compilePoint(args[1], ps, scope)
+      return (a) => {
+        const [x1, y1] = p(a)
+        const [x2, y2] = q(a)
+        return Math.hypot(x2 - x1, y2 - y1)
+      }
+    }
+    const listFn = LIST_FNS[h ?? '']
+    if (listFn && args.length === 1 && (head(args[0]) === 'List' || (isSym(args[0]) && scope.lists.has(args[0])))) {
+      const l = compileList(args[0], ps, scope)
+      return (a) => listFn(l(a))
+    }
+    if (h === 'List') throw new GraphError('A list can’t be used as a number here')
 
     switch (h) {
       case 'Add': {
@@ -380,6 +413,70 @@ export function compile(j: Json, params: string[], scope: Scope): Fn {
   return c(j, params)
 }
 
+const LIST_FNS: Record<string, (l: number[]) => number> = {
+  Sum: (l) => l.reduce((s, v) => s + v, 0),
+  Mean: (l) => l.reduce((s, v) => s + v, 0) / l.length,
+  Total: (l) => l.reduce((s, v) => s + v, 0),
+  Length: (l) => l.length,
+  Count: (l) => l.length,
+  Max: (l) => Math.max(...l),
+  Min: (l) => Math.min(...l),
+  Median: (l) => {
+    const s = [...l].sort((a, b) => a - b)
+    const m = s.length >> 1
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2
+  },
+  StandardDeviation: (l) => {
+    const m = l.reduce((s, v) => s + v, 0) / l.length
+    return Math.sqrt(l.reduce((s, v) => s + (v - m) ** 2, 0) / Math.max(1, l.length - 1))
+  },
+}
+
+/** Compile an expression that denotes a point: A, (x, y), midpoint(A, B). */
+export function compilePoint(j: Json, params: string[], scope: Scope): (a: number[]) => Pt {
+  if (isSym(j)) {
+    return () => {
+      const p = scope.points.get(j)
+      if (!p) throw new GraphError(`“${pretty(j)}” is not a point`)
+      return p()
+    }
+  }
+  const t = head(j) === 'Delimiter' && head(j[1]) === 'Sequence' && j[1].length === 3 ? [j[1][1], j[1][2]] : null
+  if (t) {
+    const x = compile(t[0], params, scope)
+    const y = compile(t[1], params, scope)
+    return (a) => [x(a), y(a)]
+  }
+  const call = asCall(j)
+  if (call && call.name === 'midpoint' && call.args.length === 2) {
+    const p = compilePoint(call.args[0], params, scope)
+    const q = compilePoint(call.args[1], params, scope)
+    return (a) => {
+      const [x1, y1] = p(a)
+      const [x2, y2] = q(a)
+      return [(x1 + x2) / 2, (y1 + y2) / 2]
+    }
+  }
+  if (head(j) === 'Midpoint' && j.length === 3) return compilePoint(['InvisibleOperator', 'midpoint', ['Delimiter', ['Sequence', j[1], j[2]]]], params, scope)
+  throw new GraphError('Expected a point like (1, 2) or A')
+}
+
+/** Compile a list: a list name or [1, 2, 3]. */
+export function compileList(j: Json, params: string[], scope: Scope): (a: number[]) => number[] {
+  if (isSym(j)) {
+    return () => {
+      const l = scope.lists.get(j)
+      if (!l) throw new GraphError(`“${pretty(j)}” is not a list`)
+      return l
+    }
+  }
+  if (head(j) === 'List') {
+    const items = j.slice(1).map((x: Json) => compile(x, params, scope))
+    return (a) => items.map((f: Fn) => f(a))
+  }
+  throw new GraphError('Expected a list')
+}
+
 export const COMPARE: Record<string, (a: number, b: number) => boolean> = {
   Less: (a, b) => a < b,
   LessEqual: (a, b) => a <= b,
@@ -426,6 +523,11 @@ export type Analysis =
   | { kind: 'points'; pts: [Json, Json][] }
   | { kind: 'parametric'; xs: Json; ys: Json }
   | { kind: 'value'; body: Json }
+  | { kind: 'namedPoint'; name: string; point: Json; draggable: boolean }
+  | { kind: 'list'; name: string; items: Json }
+  | { kind: 'regression'; lhs: string; rhs: Json }
+  | { kind: 'geometry'; shape: 'segment' | 'line' | 'ray' | 'circle' | 'polygon' | 'tangent'; args: Json[] }
+  | { kind: 'table' }
 
 const INEQ = new Set(['Less', 'LessEqual', 'Greater', 'GreaterEqual'])
 
@@ -443,9 +545,25 @@ export function analyze(j: Json): Analysis {
   if (hasError(j)) return { kind: 'error', message: 'Can’t read this yet' }
 
   const h = head(j)
+  if (h === 'Tilde' && j.length === 3 && isSym(j[1])) return { kind: 'regression', lhs: j[1], rhs: j[2] }
+  if (h === 'Segment' || h === 'Polygon' || h === 'Line' || h === 'Circle') {
+    return { kind: 'geometry', shape: h.toLowerCase() as 'segment', args: j.slice(1) }
+  }
+  {
+    const call = asCall(j)
+    const shapes = ['segment', 'line', 'ray', 'circle', 'polygon', 'tangent']
+    if (call && shapes.includes(call.name)) return { kind: 'geometry', shape: call.name as 'segment', args: call.args }
+  }
   if (h === 'Equal' && j.length === 3) {
     const lhs = ungroup(j[1])
     const rhs = j[2]
+    if (isSym(lhs) && !RESERVED.has(lhs)) {
+      const pt = tuple(rhs)
+      if (pt && !uses(rhs, 'x') && !uses(rhs, 'y') && !uses(rhs, 't')) return { kind: 'namedPoint', name: lhs, point: rhs, draggable: num(pt[0]) !== null && num(pt[1]) !== null }
+      const call = asCall(rhs)
+      if ((call && call.name === 'midpoint') || head(rhs) === 'Midpoint') return { kind: 'namedPoint', name: lhs, point: rhs, draggable: false }
+      if (head(rhs) === 'List') return { kind: 'list', name: lhs, items: rhs }
+    }
     const call = asCall(lhs)
     if (call && call.args.every(isSym) && !['x', 'y'].includes(call.name)) {
       return { kind: 'function', name: call.name, params: call.args as string[], body: rhs, plot: call.args.length === 1 }
@@ -528,6 +646,19 @@ export function freeSymbols(a: Analysis): Set<string> {
     case 'parametric':
       add(a.xs, ['t'])
       add(a.ys, ['t'])
+      break
+    case 'namedPoint':
+      add(a.point)
+      break
+    case 'list':
+      add(a.items)
+      break
+    case 'regression':
+      // Unknowns on the right are the fitted parameters, so only the data lists count.
+      s.add(a.lhs)
+      break
+    case 'geometry':
+      a.args.forEach((x) => add(x))
       break
   }
   return s

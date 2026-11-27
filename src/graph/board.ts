@@ -1,7 +1,8 @@
 import JXG from 'jsxgraph'
 import { adaptColor } from '../ink/render'
 import { COMPARE, derivative } from './compile'
-import { safe, type Item } from './engine'
+import { safe, safePt, type Item } from './engine'
+import type { Pt } from './compile'
 import { fmt, type GraphViewport } from './model'
 
 /**
@@ -22,6 +23,8 @@ export interface BoardCallbacks {
   onViewChange: (v: GraphViewport) => void
   /** A draggable point moved: new values for the sliders it is bound to. */
   onDragPoint: (exprId: string, values: Record<string, number>, done: boolean) => void
+  /** A named point with plain coordinates (A = (1, 2)) was dragged. */
+  onMoveNamedPoint: (exprId: string, x: number, y: number, done: boolean) => void
   onSelect: (exprId: string | null) => void
 }
 
@@ -282,7 +285,7 @@ export class GraphBoard {
             fillColor: this.col(it.expr.color),
             highlight: false,
             showInfobox: false,
-            withLabel: false,
+            ...this.labelAttrs(it.expr.label ? () => `(${fmt(X())}, ${fmt(Y())})` : null),
             fixed: !drag,
           }
           if (!drag) {
@@ -317,8 +320,129 @@ export class GraphBoard {
         })
         break
       }
+      case 'namedPoint': {
+        const f = it.points![0]
+        const name = it.name ?? ''
+        const text = () => {
+          const [x, y] = safePt(f)
+          return it.expr.label ? `${name} (${fmt(x)}, ${fmt(y)})` : name
+        }
+        const base = {
+          name: '',
+          size: a.draggable ? 5 : 4,
+          strokeWidth: a.draggable ? 3 : 2,
+          strokeColor: this.col(it.expr.color),
+          fillColor: a.draggable ? this.colors.bg : this.col(it.expr.color),
+          highlight: false,
+          showInfobox: false,
+          ...this.labelAttrs(text),
+        }
+        if (!a.draggable) {
+          els.push(clickable(b.create('point', [() => safePt(f)[0], () => safePt(f)[1]], { ...base, fixed: true })))
+          break
+        }
+        const [x0, y0] = safePt(f)
+        const p = b.create('point', [x0, y0], { ...base, fixed: false })
+        const round = (v: number) => Math.round(v * 100) / 100
+        p.on('down', () => (this.dragging = it.expr.id))
+        p.on('drag', () => this.cb.onMoveNamedPoint(it.expr.id, round(p.X()), round(p.Y()), false))
+        p.on('up', () => {
+          this.cb.onMoveNamedPoint(it.expr.id, round(p.X()), round(p.Y()), true)
+          this.dragging = null
+        })
+        p.__sync = () => {
+          if (this.dragging !== it.expr.id) p.setPositionDirectly(JXG.COORDS_BY_USER, safePt(f))
+        }
+        b.on('update', p.__sync)
+        p.__unsync = () => b.off('update', p.__sync)
+        els.push(p)
+        break
+      }
+      case 'table': {
+        for (const col of it.tablePoints ?? []) {
+          const color = this.col(col.color)
+          for (const [x, y] of col.pts) {
+            els.push(
+              clickable(
+                b.create('point', [x, y], {
+                  name: '',
+                  size: 4,
+                  fixed: true,
+                  strokeColor: color,
+                  fillColor: color,
+                  highlight: false,
+                  showInfobox: false,
+                  ...this.labelAttrs(it.expr.label ? () => `(${fmt(x)}, ${fmt(y)})` : null),
+                }),
+              ),
+            )
+          }
+        }
+        break
+      }
+      case 'regression': {
+        const f = it.f
+        if (f) els.push(clickable(b.create('functiongraph', [(x: number) => safe(f, [x])], this.style(it))))
+        break
+      }
+      case 'geometry': {
+        // Invisible helper points that follow their (possibly moving) definitions
+        const hp = (f: () => Pt) => b.create('point', [() => safePt(f)[0], () => safePt(f)[1]], { visible: false, fixed: true, withLabel: false, name: '' })
+        const pts = (it.points ?? []).map(hp)
+        els.push(...pts)
+        const style = this.style(it)
+        if (a.shape === 'segment') els.push(clickable(b.create('segment', pts, style)))
+        else if (a.shape === 'line') els.push(clickable(b.create('line', pts, style)))
+        else if (a.shape === 'ray') els.push(clickable(b.create('line', pts, { ...style, straightFirst: false, straightLast: true })))
+        else if (a.shape === 'polygon')
+          els.push(
+            clickable(
+              b.create('polygon', pts, {
+                fillColor: this.col(it.expr.color),
+                fillOpacity: 0.18,
+                highlight: false,
+                fixed: true,
+                hasInnerPoints: true,
+                vertices: { visible: false },
+                borders: { strokeColor: this.col(it.expr.color), strokeWidth: 2.6, highlight: false, dash: it.expr.dashed ? 2 : 0 },
+              }),
+            ),
+          )
+        else if (a.shape === 'circle') {
+          const r = it.nums?.[0]
+          els.push(clickable(b.create('circle', r ? [pts[0], () => Math.abs(safe(r, []))] : pts, style)))
+        } else if (a.shape === 'tangent') {
+          const name = it.fnName!
+          const x0 = it.nums![0]
+          const fx = (x: number) => {
+            const g = this.fnLookup(name)
+            return g ? safe((v) => g(v[0]), [x]) : NaN
+          }
+          const slope = () => {
+            const x = safe(x0, [])
+            const h = 1e-4 * Math.max(1, Math.abs(x))
+            return (fx(x + h) - fx(x - h)) / (2 * h)
+          }
+          const p1 = b.create('point', [() => safe(x0, []), () => fx(safe(x0, []))], { visible: false, fixed: true, withLabel: false, name: '' })
+          const p2 = b.create('point', [() => safe(x0, []) + 1, () => fx(safe(x0, [])) + slope()], { visible: false, fixed: true, withLabel: false, name: '' })
+          els.push(p1, p2, clickable(b.create('line', [p1, p2], style)))
+        }
+        break
+      }
     }
     return els
+  }
+
+  /** User functions, for tangent lines. Set by the view each render. */
+  fnLookup: (name: string) => ((x: number) => number) | null = () => null
+
+  private labelAttrs(text: (() => string) | string | null) {
+    if (!text) return { withLabel: false }
+    return {
+      withLabel: true,
+      name: text,
+      label: { offset: [8, 10], fontSize: 12, strokeColor: this.colors.label, highlight: false, cssStyle: 'font-family: var(--font-ui)' },
+    }
   }
 
   // -------------------------------------------------------------------------

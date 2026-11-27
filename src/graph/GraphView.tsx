@@ -5,7 +5,7 @@ import { GraphBoard } from './board'
 import { pretty } from './compile'
 import { evaluate, type Evaluation, type Item } from './engine'
 import { MathInput, type MathInputHandle } from './MathInput'
-import { defaultSlider, fmt, GRAPH_COLORS, newExprId, nextColor, type GraphExpr, type GraphState, type GraphViewport } from './model'
+import { defaultSlider, fmt, GRAPH_COLORS, newExprId, nextColor, type GraphExpr, type GraphState, type GraphViewport, type TableColumn } from './model'
 
 /**
  * Desmos-style graphing calculator: expression list on the left, graph on
@@ -75,7 +75,16 @@ export function GraphView({ state, height, onChange, onViewChange, onHeight }: P
     () =>
       JSON.stringify([
         state.degrees,
-        evaluation.items.map((it) => [it.analysis.kind === 'slider' ? `S:${it.analysis.name}` : it.expr.latex, it.expr.color, it.expr.hidden, it.expr.dashed, it.expr.domain, it.error]),
+        evaluation.items.map((it) => [
+          it.analysis.kind === 'slider' ? `S:${it.analysis.name}` : it.analysis.kind === 'namedPoint' && it.analysis.draggable ? `P:${it.analysis.name}` : it.expr.latex,
+          it.expr.table,
+          it.expr.label,
+          it.expr.color,
+          it.expr.hidden,
+          it.expr.dashed,
+          it.expr.domain,
+          it.error,
+        ]),
       ]),
     [evaluation, state.degrees],
   )
@@ -103,6 +112,16 @@ export function GraphView({ state, height, onChange, onViewChange, onHeight }: P
       {
         onViewChange: (v) => onViewChange(v),
         onSelect: (id) => setSelected(id),
+        onMoveNamedPoint: (exprId, x, y) => {
+          update((s) => ({
+            ...s,
+            exprs: s.exprs.map((e) => {
+              if (e.id !== exprId) return e
+              const i = e.latex.indexOf('=')
+              return i < 0 ? e : { ...e, latex: `${e.latex.slice(0, i)}=\\left(${x},${y}\\right)` }
+            }),
+          }))
+        },
         onDragPoint: (_exprId, values) => {
           const ids = new Map<string, number>()
           for (const it of evalRef.current.items) if (it.analysis.kind === 'slider' && it.analysis.name in values) ids.set(it.expr.id, values[it.analysis.name])
@@ -112,6 +131,10 @@ export function GraphView({ state, height, onChange, onViewChange, onHeight }: P
       stateRef.current.grid,
     )
     boardRef.current = board
+    board.fnLookup = (name) => {
+      const f = evalRef.current.scope.fns.get(name)
+      return f ? (x: number) => f(x) : null
+    }
     board.render(evaluation.items)
     return () => {
       board.destroy()
@@ -175,6 +198,18 @@ export function GraphView({ state, height, onChange, onViewChange, onHeight }: P
       setFocusId(null)
     }
   }, [focusId, state.exprs])
+
+  const addTable = () => {
+    const id = newExprId()
+    update((s) => {
+      // Name columns x_n / y_n with the next free n
+      const used = new Set(s.exprs.flatMap((e) => e.table?.columns.map((c) => c.name) ?? []))
+      let n = 1
+      while (used.has(`x_${n}`) || used.has(`y_${n}`)) n++
+      const table = { columns: [{ name: `x_${n}`, values: ['', '', ''] }, { name: `y_${n}`, values: ['', '', ''] }] }
+      return { ...s, exprs: [...s.exprs, { id, latex: '', color: nextColor(s.exprs), table }] }
+    })
+  }
 
   const addExpr = (afterId?: string, latex = '') => {
     const id = newExprId()
@@ -243,9 +278,7 @@ export function GraphView({ state, height, onChange, onViewChange, onHeight }: P
       {state.showList && (
         <div className="graph-list" data-ink-ignore>
           <div className="graph-list-head">
-            <button className="gbtn" title="Add expression" onClick={() => addExpr()}>
-              ＋
-            </button>
+            <AddMenu onExpression={() => addExpr()} onTable={() => addTable()} />
             <span className="spacer" />
             <button className={`gbtn small${state.degrees ? ' on' : ''}`} title="Angles in degrees or radians" onClick={() => update((s) => ({ ...s, degrees: !s.degrees }))}>
               {state.degrees ? 'DEG' : 'RAD'}
@@ -350,7 +383,8 @@ interface RowProps {
 
 function ExprRow({ index, item, selected, styleOpen, playing, inputRef, onLatex, onEnter, onBackspaceEmpty, onMove, onDelete, onToggle, onStyle, onPatch, onAddSliders, onPlay }: RowProps) {
   const { expr, analysis: a, error } = item
-  const plottable = !['empty', 'error', 'slider', 'constant', 'value'].includes(a.kind) && !(a.kind === 'function' && !a.plot)
+  const plottable = !['empty', 'error', 'slider', 'constant', 'value', 'list'].includes(a.kind) && !(a.kind === 'function' && !a.plot)
+  const pointish = ['point', 'points', 'namedPoint', 'table'].includes(a.kind)
   const slider = a.kind === 'slider' && !error ? (expr.slider ?? defaultSlider(a.value)) : null
 
   return (
@@ -367,7 +401,11 @@ function ExprRow({ index, item, selected, styleOpen, playing, inputRef, onLatex,
             onStyle()
           }}
         />
-        <MathInput ref={inputRef} value={expr.latex} onChange={onLatex} onEnter={onEnter} onBackspaceEmpty={onBackspaceEmpty} onMoveOut={onMove} />
+        {expr.table ? (
+          <TableEditor table={expr.table} onChange={(table) => onPatch({ table })} />
+        ) : (
+          <MathInput ref={inputRef} value={expr.latex} onChange={onLatex} onEnter={onEnter} onBackspaceEmpty={onBackspaceEmpty} onMoveOut={onMove} />
+        )}
         <div className="graph-row-tools">
           {plottable && (
             <button className="gbtn tiny" title="Colour and style" onClick={onStyle}>
@@ -388,9 +426,16 @@ function ExprRow({ index, item, selected, styleOpen, playing, inputRef, onLatex,
           <label className="graph-color custom" title="Custom colour">
             <input type="color" value={expr.color} onChange={(e) => onPatch({ color: e.target.value })} />
           </label>
-          <button className={`gbtn small${expr.dashed ? ' on' : ''}`} onClick={() => onPatch({ dashed: !expr.dashed })}>
-            dashed
-          </button>
+          {!pointish && (
+            <button className={`gbtn small${expr.dashed ? ' on' : ''}`} onClick={() => onPatch({ dashed: !expr.dashed })}>
+              dashed
+            </button>
+          )}
+          {pointish && (
+            <button className={`gbtn small${expr.label ? ' on' : ''}`} onClick={() => onPatch({ label: !expr.label })}>
+              label
+            </button>
+          )}
         </div>
       )}
 
@@ -423,6 +468,19 @@ function ExprRow({ index, item, selected, styleOpen, playing, inputRef, onLatex,
       )}
 
       {!error && item.value !== undefined && (a.kind === 'value' || a.kind === 'constant') && <div className="graph-value">= {fmt(item.value)}</div>}
+
+      {!error && item.regression && (
+        <div className="graph-regression">
+          {Object.entries(item.regression.params).map(([k, v]) => (
+            <span key={k}>
+              <i>{pretty(k)}</i> = {fmt(v)}
+            </span>
+          ))}
+          <span className="r2">
+            R² = {fmt(item.regression.r2)}
+          </span>
+        </div>
+      )}
 
       {error && expr.latex.trim() && (
         <div className="graph-error">
@@ -465,6 +523,99 @@ function parseNum(text: string): number {
   const m = /^(-?\d*\.?\d*)\s*π$/.exec(t)
   if (m) return (m[1] === '' ? 1 : m[1] === '-' ? -1 : parseFloat(m[1])) * Math.PI
   return parseFloat(t)
+}
+
+function AddMenu({ onExpression, onTable }: { onExpression: () => void; onTable: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <span className="graph-add-menu">
+      <button className="gbtn" title="Add an expression or table" onClick={() => setOpen((o) => !o)}>
+        ＋
+      </button>
+      {open && (
+        <span className="graph-add-pop" onMouseLeave={() => setOpen(false)}>
+          <button onClick={() => (setOpen(false), onExpression())}>Expression</button>
+          <button onClick={() => (setOpen(false), onTable())}>Table</button>
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** Desmos-style table: header row of column names, then numbers. A blank last row grows the table. */
+function TableEditor({ table, onChange }: { table: { columns: TableColumn[] }; onChange: (t: { columns: TableColumn[] }) => void }) {
+  const rows = Math.max(...table.columns.map((c) => c.values.length), 1)
+  const setCell = (ci: number, ri: number, v: string) => {
+    const columns = table.columns.map((c, i) => {
+      if (i !== ci) return c
+      const values = [...c.values]
+      while (values.length <= ri) values.push('')
+      values[ri] = v
+      return { ...c, values }
+    })
+    // Keep one empty row at the bottom to type into
+    const last = Math.max(...columns.map((c) => c.values.length)) - 1
+    if (columns.some((c) => (c.values[last] ?? '').trim())) columns.forEach((c) => c.values.push(''))
+    onChange({ columns })
+  }
+  const setName = (ci: number, name: string) => onChange({ columns: table.columns.map((c, i) => (i === ci ? { ...c, name } : c)) })
+  const addColumn = () => {
+    const used = new Set(table.columns.map((c) => c.name))
+    let n = 1
+    while (used.has(`y_${n}`)) n++
+    onChange({ columns: [...table.columns, { name: `y_${n}`, values: Array(rows).fill('') }] })
+  }
+  const removeColumn = (ci: number) => table.columns.length > 2 && onChange({ columns: table.columns.filter((_, i) => i !== ci) })
+  const focusCell = (ci: number, ri: number, host: HTMLElement) => host.closest('table')?.querySelector<HTMLInputElement>(`[data-cell="${ci}-${ri}"]`)?.focus()
+  return (
+    <table className="graph-table">
+      <thead>
+        <tr>
+          {table.columns.map((c, ci) => (
+            <th key={ci}>
+              <input value={c.name} onChange={(e) => setName(ci, e.target.value)} spellCheck={false} aria-label="Column name" />
+              {ci > 1 && (
+                <button className="col-x" title="Remove column" onClick={() => removeColumn(ci)}>
+                  ×
+                </button>
+              )}
+            </th>
+          ))}
+          <th className="col-add">
+            <button title="Add column" onClick={addColumn}>
+              ＋
+            </button>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {Array.from({ length: rows }, (_, ri) => (
+          <tr key={ri}>
+            {table.columns.map((c, ci) => (
+              <td key={ci}>
+                <input
+                  data-cell={`${ci}-${ri}`}
+                  value={c.values[ri] ?? ''}
+                  inputMode="decimal"
+                  onChange={(e) => setCell(ci, ri, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      requestAnimationFrame(() => focusCell(ci, ri + 1, e.target as HTMLElement))
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      focusCell(ci, ri - 1, e.target as HTMLElement)
+                    }
+                  }}
+                />
+              </td>
+            ))}
+            <td />
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
 }
 
 function NumberBox({ value, onCommit }: { value: number; onCommit: (v: number) => void }) {
