@@ -46,6 +46,8 @@ export interface SurfaceOptions {
   /** Size of the surface (canvas blocks). */
   size: () => { width: number; height: number }
   anchors?: AnchorProvider
+  /** Lighten dark ink in dark mode (off for surfaces that stay white, like PDF pages). Default true. */
+  adaptToDark?: boolean
   /** Called after the canvases are positioned for a new viewport. */
   onViewport?: (top: number, height: number) => void
 }
@@ -148,7 +150,7 @@ export class InkSurface {
   render() {
     const view = this.view()
     this.opts.onViewport?.(view.top, view.height)
-    const adapt = getSettings().adaptInkToDark
+    const adapt = (getSettings().adaptInkToDark && this.opts.adaptToDark !== false)
     const strokes = this.sorted().filter((s) => !this.hidden.has(s.id))
     if (this.opts.under) {
       const under = prepareCanvas(this.opts.under, view)
@@ -172,7 +174,7 @@ export class InkSurface {
     const ctx = prepareCanvas(this.opts.live, view)
     if (!ctx) return
     const dark = view.dark
-    const adapt = getSettings().adaptInkToDark
+    const adapt = (getSettings().adaptInkToDark && this.opts.adaptToDark !== false)
     const m = this.mode
     if (m.type === 'draw') {
       const s = this.draftStroke(m.tool, m.pts, m.sim)

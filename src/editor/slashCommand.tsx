@@ -5,6 +5,7 @@ import Suggestion, { exitSuggestion, type SuggestionKeyDownProps, type Suggestio
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { newCanvasId } from './canvasBlock'
 import { graphContent } from './graphBlock'
+import { pickAndInsertFiles } from './filePicker'
 
 /**
  * The `/` command menu. This is where blocks with no Markdown equivalent live
@@ -38,6 +39,9 @@ export const SLASH_ITEMS: SlashItem[] = [
   { title: 'Canvas', description: 'Drawing area, full width', icon: '✎', keywords: ['draw', 'sketch', 'ink', 'canvas', 'diagram'], run: (e, r) => chainFor(e, r).insertContent([{ type: 'canvasBlock', attrs: { id: newCanvasId() } }, { type: 'paragraph' }]).run() },
   { title: 'Canvas beside text', description: 'Drawing on the right, text wraps around it', icon: '◧', keywords: ['draw', 'sketch', 'float', 'wrap', 'canvas', 'figure'], run: (e, r) => chainFor(e, r).insertContent([{ type: 'canvasBlock', attrs: { id: newCanvasId(), align: 'right', width: 300, height: 220 } }, { type: 'paragraph' }]).run() },
   { title: 'Graph', description: 'Desmos-style graphing calculator', icon: '📈', keywords: ['graph', 'plot', 'desmos', 'function', 'chart', 'calculator'], run: (e, r) => chainFor(e, r).insertContent(graphContent()).run() },
+  { title: 'Table', description: '3 × 3 table (Tab moves between cells)', icon: '▦', keywords: ['table', 'grid', 'matrix', 'rows', 'columns'], run: (e, r) => chainFor(e, r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
+  { title: 'Image', description: 'Insert a picture (or paste / drop one)', icon: '🖼', keywords: ['image', 'picture', 'photo', 'screenshot', 'figure'], run: (e, r) => (chainFor(e, r).run(), pickAndInsertFiles(e, 'image/*')) },
+  { title: 'PDF', description: 'Insert PDF pages to annotate', icon: '📄', keywords: ['pdf', 'slides', 'lecture', 'paper', 'worksheet', 'annotate'], run: (e, r) => (chainFor(e, r).run(), pickAndInsertFiles(e, 'application/pdf,.pdf')) },
   { title: 'Divider', description: 'Horizontal rule', icon: '—', shortcut: '---', keywords: ['hr', 'rule', 'separator', 'line'], run: (e, r) => chainFor(e, r).setHorizontalRule().run() },
 ]
 

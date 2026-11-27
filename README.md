@@ -50,6 +50,13 @@ Marginalia combines a structured, StemPad-style note editor (inline LaTeX, displ
 - **Code blocks.** Syntax highlighting, auto-indent, bracket matching, Tab indents, and a language picker. **Ctrl+Enter** exits the block.
 - **Infinite page.** One continuous, fixed-width page (8.5in wide) with no page breaks. Fixed width keeps future ink annotations anchored exactly and lets a later PDF export slice the strip into pages cleanly.
 - **Library folder (backup + sync).** Every note is also saved as a `.marginalia` file in a folder (desktop default: `Documents\Marginalia`; change it in Settings). Folders in the sidebar are folders on disk. Put the library in OneDrive/Dropbox to back up and use several computers: edits from different devices merge instead of overwriting. Moving or deleting files in Explorer moves or deletes the notes.
+- **Import.** The ⇪ button (or dropping files on the sidebar) imports:
+  - **Markdown** (`.md`) files as notes, with `$…$`, `$$…$$`, `\(…\)`, `\[…\]` maths, code, checklists and tables;
+  - **PDFs** (lecture slides, papers) as notes of annotatable pages, with their text searchable;
+  - **images** into the open note.
+
+  Pasting Markdown converts it, and pasting from web pages or ChatGPT keeps the equations editable. Images and PDFs can also be pasted or dropped straight into a note, or added with `/image` and `/pdf`.
+- **Tables** (`/table`, or Markdown tables), with resizable columns.
 - **Folders and search.** Organise notes into folders (e.g. one per course), drag notes between them, and search titles and full text (Ctrl+K).
 - Light and dark themes (system, or forced in Settings). Ink adapts so black ink stays readable on dark paper.
 

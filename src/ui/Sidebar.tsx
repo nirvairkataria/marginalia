@@ -16,7 +16,7 @@ interface Props {
   onCreate: (folder: string) => void
   onDelete: (note: NoteMeta) => void
   onSettings: () => void
-  onImport?: () => void
+  onImport?: (folder: string, files?: File[]) => void
 }
 
 const COLLAPSED_KEY = 'marginalia:collapsedFolders'
@@ -100,7 +100,7 @@ export function Sidebar({ notes, activeId, onSelect, onCreate, onDelete, onSetti
 
   const dropProps = (folder: string) => ({
     onDragOver: (e: React.DragEvent) => {
-      if (!e.dataTransfer.types.includes('application/x-marginalia-note')) return
+      if (!e.dataTransfer.types.includes('application/x-marginalia-note') && !e.dataTransfer.types.includes('Files')) return
       e.preventDefault()
       setDragOver(folder)
     },
@@ -108,7 +108,14 @@ export function Sidebar({ notes, activeId, onSelect, onCreate, onDelete, onSetti
     onDrop: (e: React.DragEvent) => {
       const id = e.dataTransfer.getData('application/x-marginalia-note')
       setDragOver(null)
-      if (id) moveNote(id, folder)
+      if (id) {
+        e.stopPropagation()
+        moveNote(id, folder)
+      } else if (e.dataTransfer.files.length && onImport) {
+        e.preventDefault()
+        e.stopPropagation()
+        onImport(folder, [...e.dataTransfer.files])
+      }
     },
   })
 
@@ -226,7 +233,17 @@ export function Sidebar({ notes, activeId, onSelect, onCreate, onDelete, onSetti
   const rootNotes = byFolder.get('') ?? []
 
   return (
-    <aside className="sidebar">
+    <aside
+      className="sidebar"
+      onDragOver={(e) => {
+        if (onImport && e.dataTransfer.types.includes('Files')) e.preventDefault()
+      }}
+      onDrop={(e) => {
+        if (!onImport || !e.dataTransfer.files.length) return
+        e.preventDefault()
+        onImport(dragOver ?? currentFolder, [...e.dataTransfer.files])
+      }}
+    >
       <div className="brand">
         <span className="brand-mark" aria-hidden>
           ✎
@@ -244,7 +261,7 @@ export function Sidebar({ notes, activeId, onSelect, onCreate, onDelete, onSetti
           ⊞
         </button>
         {onImport && (
-          <button className="icon-action" title="Import Markdown, PDF or images" onClick={onImport}>
+          <button className="icon-action" title="Import Markdown files, PDFs or images (or drop them here)" onClick={() => onImport(currentFolder)}>
             ⇪
           </button>
         )}
