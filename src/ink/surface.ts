@@ -468,6 +468,15 @@ export class InkSurface {
     return this.selection.size > 0
   }
 
+  /** Is the pointer on the selection box or its resize handle? */
+  hitsSelection(e: { clientX: number; clientY: number }): boolean {
+    const box = this.selectionBox()
+    if (!box) return false
+    const { x, y } = this.toSurface(e)
+    const pad = 12 / this.opts.zoom()
+    return x >= box.minX - pad && x <= box.maxX + pad && y >= box.minY - pad && y <= box.maxY + pad
+  }
+
   private hideSelection() {
     for (const id of this.selection) this.hidden.add(id)
     this.requestRender()

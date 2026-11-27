@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { updateSettings, useSettings, type Settings } from '../lib/settings'
+import { updateSettings, useSettings, type PenButtonAction, type Settings } from '../lib/settings'
 
 function Choice<K extends keyof Settings>({ name, value, options }: { name: K; value: Settings[K]; options: { value: Settings[K]; label: string }[] }) {
   return (
@@ -12,6 +12,13 @@ function Choice<K extends keyof Settings>({ name, value, options }: { name: K; v
     </div>
   )
 }
+
+const BUTTON_OPTIONS: { value: PenButtonAction; label: string }[] = [
+  { value: 'eraser', label: 'Eraser' },
+  { value: 'lasso', label: 'Lasso' },
+  { value: 'highlighter', label: 'Highlighter' },
+  { value: 'none', label: 'Off' },
+]
 
 function Toggle({ name, label, hint }: { name: 'penAlwaysDraws' | 'touchDraws' | 'adaptInkToDark'; label: string; hint: string }) {
   const s = useSettings()
@@ -73,6 +80,19 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           <h3>Pen &amp; touch</h3>
           <Toggle name="penAlwaysDraws" label="Pen always draws" hint="Writing with a pen inks even when the text tool is selected. The mouse keeps editing text." />
           <Toggle name="touchDraws" label="Fingers draw" hint="When off, fingers scroll and pinch while an ink tool is selected (recommended with an active pen)." />
+          <div className="setting-row">
+            <span>Side button</span>
+            <Choice name="penButton1" value={s.penButton1} options={BUTTON_OPTIONS} />
+          </div>
+          <div className="setting-row">
+            <span>Second side button</span>
+            <Choice name="penButton2" value={s.penButton2} options={BUTTON_OPTIONS} />
+          </div>
+          <p className="setting-hint">
+            Hold a side button while writing to use that tool, then let go to return to your pen. After lassoing, drag the selection with the pen tip. The eraser end
+            of the pen always erases. Some pens only pass a second side button through if their driver maps it to &ldquo;middle click&rdquo; (Wacom Center or your
+            pen&rsquo;s settings app). &ldquo;Off&rdquo; leaves the button to Windows (right-click).
+          </p>
           <div className="setting-row">
             <span>Toolbar position</span>
             <Choice name="toolbarPosition" value={s.toolbarPosition} options={[{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }, { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }]} />
