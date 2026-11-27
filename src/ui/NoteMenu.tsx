@@ -5,7 +5,7 @@ import { exportMarkdown } from '../export/markdown'
 import { printNote } from '../export/print'
 
 /** The ⋯ menu at the top right of a note: export (and later, publish). */
-export function NoteMenu({ editor, doc, title, pageRef }: { editor: Editor | null; doc: Y.Doc | null; title: string; pageRef: React.RefObject<HTMLDivElement | null> }) {
+export function NoteMenu({ editor, doc, title, pageRef, onPublish }: { editor: Editor | null; doc: Y.Doc | null; title: string; pageRef: React.RefObject<HTMLDivElement | null>; onPublish: () => void }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -33,11 +33,21 @@ export function NoteMenu({ editor, doc, title, pageRef }: { editor: Editor | nul
   const ready = !!editor && !!doc && !!pageRef.current
   return (
     <div className="note-menu" ref={ref}>
-      <button className="note-menu-btn" onClick={() => setOpen((o) => !o)} disabled={!ready} title="Export this note" aria-haspopup="menu" aria-expanded={open}>
+      <button className="note-menu-btn" onClick={() => setOpen((o) => !o)} disabled={!ready} title="Export or publish this note" aria-haspopup="menu" aria-expanded={open}>
         {busy ? <span className="spinner" aria-label={busy} /> : '⋯'}
       </button>
       {open && ready && (
         <div className="note-menu-pop" role="menu">
+          <button
+            role="menuitem"
+            onClick={() => {
+              setOpen(false)
+              onPublish()
+            }}
+          >
+            <strong>Publish to website…</strong>
+            <small>Share this note as a web page (free hosting)</small>
+          </button>
           <button role="menuitem" onClick={() => run('PDF export', () => printNote(pageRef.current!, doc!))}>
             <strong>Export PDF…</strong>
             <small>Letter pages, ink included (choose “Save as PDF”)</small>

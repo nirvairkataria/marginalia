@@ -9,6 +9,7 @@ import { setPageZoom } from './ink/zoom'
 import { activeTool, useSettings } from './lib/settings'
 import { InkToolbar } from './ui/InkToolbar'
 import { NoteMenu } from './ui/NoteMenu'
+import { PublishDialog } from './publish/PublishDialog'
 import { OutputPanel } from './ui/OutputPanel'
 import { SettingsDialog } from './ui/SettingsDialog'
 import { Sidebar } from './ui/Sidebar'
@@ -69,6 +70,7 @@ export default function App() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 720)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
   const [editor, setEditor] = useState<Editor | null>(null)
   const { scrollerRef, zoom } = usePageZoom()
   const pageRef = useRef<HTMLDivElement>(null)
@@ -163,7 +165,7 @@ export default function App() {
             ☰
           </button>
           <InkToolbar onInsertCanvas={insertCanvas} />
-          <NoteMenu editor={editor} doc={ydoc} title={notes.find((n) => n.id === activeId)?.title ?? 'Note'} pageRef={pageRef} />
+          <NoteMenu editor={editor} doc={ydoc} title={notes.find((n) => n.id === activeId)?.title ?? 'Note'} pageRef={pageRef} onPublish={() => setPublishOpen(true)} />
           <div className="scroller" ref={scrollerRef}>
             <div className={pageClass} ref={pageRef} style={{ width: PAGE_WIDTH, zoom }}>
               {activeId && ydoc ? (
@@ -180,6 +182,7 @@ export default function App() {
         <OutputPanel />
       </main>
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <PublishDialog open={publishOpen} onClose={() => setPublishOpen(false)} noteId={activeId} page={pageRef.current} doc={ydoc} />
     </div>
   )
 }

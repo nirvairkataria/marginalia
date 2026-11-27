@@ -49,8 +49,8 @@ Because publishing is "commit to a repo", you get full history of every publishe
 2. ✅ Ink: pens (5 types, pressure on/off), highlighter, stroke/area eraser, lasso, customizable toolbar, canvas blocks with text wrap, page annotations anchored to blocks, dark mode
 3. ✅ Run code: Python (bundled Pyodide) and JavaScript, output panel
 4. ✅ Graph blocks (built on JSXGraph, see above)
-5. ⬜ Graph extras: tables and regressions, lists, labels on points, Desmos block with your own API key
-6. ⬜ Images, callouts, tables
-7. ⬜ Export: PDF (paged), Markdown + LaTeX, HTML
-8. ⬜ Publishing pipeline (above)
-9. ⬜ Sync between devices + read-only mobile viewer
+5. ✅ Graph extras: tables and regressions, lists, labels on points, geometry (Desmos block with your own API key still open)
+6. ✅ Images, tables (callouts still open)
+7. ✅ Export: PDF (paged, with ink), Markdown + LaTeX; import Markdown and PDFs
+8. ✅ Publishing pipeline (built: GitHub repo + GitHub/Cloudflare Pages, or a folder; static pages, no build step)
+9. ◐ Sync between devices: the library folder (OneDrive etc.) merges edits across computers. Still to do: live sync and a mobile viewer

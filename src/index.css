@@ -2739,3 +2739,121 @@ dialog.settings::backdrop {
 .graph-regression .r2 {
   color: var(--ink-faint);
 }
+
+/* ---------- Publish dialog ---------- */
+
+.publish-note {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.publish-note > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.publish-note small {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.publish-note a,
+.publish-msg a,
+.publish-help a {
+  color: var(--accent);
+  font-size: 12.5px;
+  word-break: break-all;
+}
+
+.seg button.primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.seg button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.publish-msg {
+  margin: 0;
+  font-size: 13px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.publish-msg.ok {
+  color: #2e9e4f;
+}
+
+.publish-msg.error {
+  color: var(--danger);
+}
+
+.publish-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.publish-setup label {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.publish-setup input {
+  font: inherit;
+  font-size: 13.5px;
+  border: 1px solid var(--rule);
+  border-radius: 7px;
+  padding: 5px 8px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.publish-setup input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.publish-help {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.publish-help summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+
+.publish-help ol {
+  padding-left: 1.2em;
+  line-height: 1.55;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.published-dot {
+  font-size: 10px;
+  margin-right: 4px;
+}
