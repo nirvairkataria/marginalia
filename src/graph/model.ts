@@ -6,12 +6,25 @@ export interface SliderSettings {
   step: number
 }
 
+export interface TableColumn {
+  /** Column name as typed, e.g. x_1 */
+  name: string
+  /** Cell text (kept as typed; blank cells are skipped) */
+  values: string[]
+  color?: string
+  hidden?: boolean
+}
+
 export interface GraphExpr {
   id: string
   latex: string
   color: string
   hidden?: boolean
   dashed?: boolean
+  /** Show a label (name and/or coordinates) on points */
+  label?: boolean
+  /** Present for table rows (latex is unused) */
+  table?: { columns: TableColumn[] }
   slider?: SliderSettings
   /** Parameter range for parametric curves (t) */
   domain?: { min: number; max: number }
