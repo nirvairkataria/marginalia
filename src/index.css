@@ -2449,3 +2449,178 @@ dialog.settings::backdrop {
 .prose.resize-cursor {
   cursor: col-resize;
 }
+
+/* ---------- Printing / PDF export ---------- */
+
+.print-root {
+  display: none;
+}
+
+.print-anchor {
+  position: relative;
+}
+
+.print-ink {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.print-ink .hl {
+  mix-blend-mode: multiply;
+}
+
+@media print {
+  @page {
+    size: letter;
+    margin: 0.6in 0;
+  }
+
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  html.printing body > *:not(.print-root) {
+    display: none !important;
+  }
+
+  html.printing .print-root {
+    display: block;
+  }
+
+  .print-root .page {
+    width: 816px !important;
+    zoom: 1 !important;
+    margin: 0 !important;
+    padding: 0 88px !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
+
+  .print-root .prose {
+    min-height: 0;
+  }
+
+  /* Keep things whole across page breaks */
+  .print-root .math-block,
+  .print-root .code-block,
+  .print-root .image-block,
+  .print-root .canvas-block,
+  .print-root .graph-block,
+  .print-root .pdf-page,
+  .print-root tr,
+  .print-root blockquote,
+  .print-root li {
+    break-inside: avoid;
+  }
+
+  .print-root h1,
+  .print-root h2,
+  .print-root h3 {
+    break-after: avoid;
+  }
+
+  .print-root .pdf-page {
+    break-before: auto;
+  }
+
+  .print-root .canvas-block,
+  .print-root .graph {
+    outline: none !important;
+  }
+
+  .print-root .graph-list-head,
+  .print-root .graph-add-row,
+  .print-root .graph-row-tools,
+  .print-root .graph-slider button {
+    display: none !important;
+  }
+
+  .print-root .pdf-label {
+    display: none;
+  }
+}
+
+/* ---------- Note menu ---------- */
+
+.note-menu {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  z-index: 26;
+  font-family: var(--font-ui);
+}
+
+.note-menu-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--rule);
+  background: var(--menu-bg);
+  color: var(--ink-soft);
+  font-size: 18px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.note-menu-btn:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.note-menu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  width: 290px;
+  background: var(--menu-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-menu);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.note-menu-pop button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: 0;
+  background: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.note-menu-pop button:hover {
+  background: var(--accent-soft);
+}
+
+.note-menu-pop strong {
+  font-size: 13.5px;
+  font-weight: 550;
+}
+
+.note-menu-pop small {
+  font-size: 11.5px;
+  color: var(--ink-faint);
+}
+
+.workspace-main.tb-right .note-menu {
+  top: auto;
+  bottom: 14px;
+}
+
+.print-math {
+  display: block;
+  font-size: 16px;
+  padding: 6px 2px;
+}

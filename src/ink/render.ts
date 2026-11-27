@@ -45,6 +45,35 @@ export function strokePath(s: Stroke, last = true): Path2D {
   return path
 }
 
+/** The same outline as an SVG path `d` string (for export and printing). */
+export function strokeSvgPath(s: Stroke, dx = 0, dy = 0): string {
+  const outline = getStroke(toPoints(s.pts, s.pressure && !s.sim), strokeOptions(s, true))
+  if (!outline.length) return ''
+  const f = (n: number) => Math.round(n * 100) / 100
+  let d = `M${f(outline[0][0] + dx)} ${f(outline[0][1] + dy)}`
+  for (let i = 1; i < outline.length - 1; i++) {
+    const [x0, y0] = outline[i]
+    const [x1, y1] = outline[i + 1]
+    d += `Q${f(x0 + dx)} ${f(y0 + dy)} ${f((x0 + x1) / 2 + dx)} ${f((y0 + y1) / 2 + dy)}`
+  }
+  return d + 'Z'
+}
+
+/** Effective opacity of a stroke (pen type alpha × stroke opacity). */
+export function strokeAlpha(s: Stroke): number {
+  return s.opacity * (PEN_FEEL[s.penType]?.alpha ?? 1)
+}
+
+/** An SVG document of strokes (canvas blocks → Markdown export). */
+export function strokesToSvg(strokes: Stroke[], width: number, height: number, background?: string): string {
+  const paths = [...strokes]
+    .sort((a, b) => a.z - b.z)
+    .map((s) => `<path d="${strokeSvgPath(s)}" fill="${s.color}"${strokeAlpha(s) < 1 ? ` fill-opacity="${strokeAlpha(s)}"` : ''}/>`)
+    .join('')
+  const bg = background ? `<rect width="100%" height="100%" fill="${background}"/>` : ''
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${bg}${paths}</svg>`
+}
+
 const pathCache = new Map<string, { stroke: Stroke; path: Path2D }>()
 
 export function cachedPath(s: Stroke): Path2D {

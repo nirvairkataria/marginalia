@@ -56,6 +56,9 @@ Marginalia combines a structured, StemPad-style note editor (inline LaTeX, displ
   - **images** into the open note.
 
   Pasting Markdown converts it, and pasting from web pages or ChatGPT keeps the equations editable. Images and PDFs can also be pasted or dropped straight into a note, or added with `/image` and `/pdf`.
+- **Export** (⋯ menu, top right of a note):
+  - **PDF** on Letter pages via the print dialog. Page ink is printed inside the block it's attached to, so it stays put across page breaks; breaks avoid splitting equations, code, images, graphs and slides.
+  - **Markdown** (`.md`, or `.zip` with an `assets/` folder): LaTeX stays LaTeX; drawings and graphs become SVG, PDF pages become PNGs with your ink.
 - **Tables** (`/table`, or Markdown tables), with resizable columns.
 - **Folders and search.** Organise notes into folders (e.g. one per course), drag notes between them, and search titles and full text (Ctrl+K).
 - Light and dark themes (system, or forced in Settings). Ink adapts so black ink stays readable on dark paper.

@@ -65,6 +65,27 @@ export async function readPdfPages(bytes: Uint8Array, withText = false): Promise
   return { count: aspects.length, aspects, title, text }
 }
 
+/** Render a PDF page to a canvas `cssWidth` px wide at `scale` device px per px. */
+export async function renderPdfPageCanvas(doc: Y.Doc, asset: string, pageNo: number, cssWidth: number, scale: number): Promise<HTMLCanvasElement> {
+  const pdf = await openPdf(doc, asset)
+  const page = await pdf.getPage(pageNo)
+  const base = page.getViewport({ scale: 1 })
+  const vp = page.getViewport({ scale: (cssWidth / base.width) * scale })
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(vp.width)
+  canvas.height = Math.round(vp.height)
+  await page.render({ canvas, viewport: vp }).promise
+  return canvas
+}
+
+/** Every mounted PDF page view, so printing can render them all first. */
+const mountedPages = new Set<PdfPageView>()
+
+/** Render every PDF page in the open note at print quality. */
+export async function renderAllPdfPagesForPrint(): Promise<void> {
+  await Promise.all([...mountedPages].map((v) => v.renderForPrint()))
+}
+
 class PdfPageView implements NodeView {
   dom: HTMLElement
   private node: PMNode
@@ -132,6 +153,21 @@ class PdfPageView implements NodeView {
     io.observe(this.dom)
     this.cleanup.push(() => io.disconnect())
     this.cleanup.push(whenAsset(doc, node.attrs.asset, () => void this.renderPage()))
+    mountedPages.add(this)
+    this.cleanup.push(() => mountedPages.delete(this))
+  }
+
+  /** Make sure this page is drawn (even if off screen), sharp enough for paper. */
+  async renderForPrint() {
+    const width = this.surfaceEl.offsetWidth
+    if (!width || !this.node.attrs.asset) return
+    const canvas = await renderPdfPageCanvas(this.doc, this.node.attrs.asset, this.node.attrs.page, width, 2.5)
+    this.pageCanvas.width = canvas.width
+    this.pageCanvas.height = canvas.height
+    this.pageCanvas.getContext('2d')!.drawImage(canvas, 0, 0)
+    this.renderedScale = 0
+    this.dom.classList.add('rendered')
+    this.surface.render()
   }
 
   private apply() {
