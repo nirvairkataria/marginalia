@@ -10,6 +10,7 @@ import { bindUndoEditor } from '../ink/undo'
 import { getNote, updateNote } from '../lib/notes'
 import { BlockIds } from './blockIds'
 import { CanvasBlock } from './canvasBlock'
+import { GraphBlock } from './graphBlock'
 import { CodeBlockCM, ensureLanguageDatalist } from './codeBlock'
 import { MarkdownBlockShortcuts } from './markdownShortcuts'
 import { BlockMath, InlineMath } from './math'
@@ -51,6 +52,7 @@ export function NoteEditor({ noteId, ydoc, onReady }: { noteId: string; ydoc: Y.
         InlineMath,
         BlockMath,
         CanvasBlock.configure({ doc: ydoc }),
+        GraphBlock,
         BlockIds,
         MarkdownBlockShortcuts,
         SlashCommand,

@@ -10,7 +10,7 @@
 
 **Plan: our own graph block, with an optional Desmos block.**
 
-1. **Graph block (default).** Fully offline, free, publishable.
+1. **Graph block (default, built).** Fully offline, free, publishable. Drawing is done by [JSXGraph](https://jsxgraph.org) (MIT/LGPL).
    - Expression list on the left, edited with the same MathLive fields as equations, so `y = \sin(ax)` is typed the same way as anywhere else in a note.
    - Expressions are parsed and compiled with the [Compute Engine](https://cortexjs.io/compute-engine/) (MIT, same authors as MathLive): LaTeX in, fast JavaScript function out.
    - Free parameters (`a`, `b`, …) automatically get sliders, like Desmos.
@@ -48,7 +48,9 @@ Because publishing is "commit to a repo", you get full history of every publishe
 1. ✅ Block editor: Markdown shortcuts, LaTeX, code blocks, local persistence
 2. ✅ Ink: pens (5 types, pressure on/off), highlighter, stroke/area eraser, lasso, customizable toolbar, canvas blocks with text wrap, page annotations anchored to blocks, dark mode
 3. ✅ Run code: Python (bundled Pyodide) and JavaScript, output panel
-4. ⬜ Graph blocks (above), images, callouts, tables
-5. ⬜ Export: PDF (paged), Markdown + LaTeX, HTML
-6. ⬜ Publishing pipeline (above)
-7. ⬜ Sync between devices + read-only mobile viewer
+4. ✅ Graph blocks (built on JSXGraph, see above)
+5. ⬜ Graph extras: tables and regressions, lists, labels on points, Desmos block with your own API key
+6. ⬜ Images, callouts, tables
+7. ⬜ Export: PDF (paged), Markdown + LaTeX, HTML
+8. ⬜ Publishing pipeline (above)
+9. ⬜ Sync between devices + read-only mobile viewer
