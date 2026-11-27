@@ -37,6 +37,7 @@ Marginalia combines a structured, StemPad-style note editor (inline LaTeX, displ
   - Click a tool again to edit it; drag to reorder; dock the toolbar on any edge.
 - **Pen-first input.**
   - The pen draws even in text mode (optional), and the pen's eraser end erases.
+  - Pen side buttons: hold the main one to erase and the second one to lasso (both configurable), then drag the selection with the pen tip.
   - Fingers scroll, with palm rejection.
   - Ctrl+Z undoes text and ink together.
 - **Graphs (`/graph`).** A Desmos-style graphing calculator inside your notes, fully offline.

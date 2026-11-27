@@ -1,5 +1,5 @@
-import { activeTool, getSettings, updateSettings } from '../lib/settings'
-import { clearAllSelections, deleteSelection, duplicateSelection, type InkSurface } from './surface'
+import { activeTool, getSettings, updateSettings, type PenButtonAction } from '../lib/settings'
+import { clearAllSelections, deleteSelection, duplicateSelection, selectionSurface, type InkSurface } from './surface'
 import type { ToolPreset } from './types'
 
 /**
@@ -10,7 +10,9 @@ import type { ToolPreset } from './types'
  *   rejection).
  * - With the text tool selected, a pen still draws if "pen always draws" is
  *   on; the mouse edits text as usual.
- * - The pen's eraser end (or barrel eraser button) always erases.
+ * - The pen's eraser end always erases. Side (barrel) buttons switch tool while
+ *   held: by default the main button erases and the second one lassos.
+ * - Pen tip inside a lasso selection drags it, whatever tool is active.
  * - Canvas blocks register themselves; strokes starting on one go there,
  *   everything else goes to the page overlay.
  */
@@ -43,13 +45,48 @@ const DEFAULT_ERASER: ToolPreset = {
   eraserMode: 'stroke',
 }
 
+const DEFAULT_LASSO: ToolPreset = { ...DEFAULT_ERASER, id: 'builtin-lasso', kind: 'lasso', name: 'Lasso' }
+const DEFAULT_HIGHLIGHTER: ToolPreset = { ...DEFAULT_ERASER, id: 'builtin-highlighter', kind: 'highlighter', name: 'Highlighter', color: '#ffd400', width: 18, opacity: 0.4, penType: 'marker' }
+
 function isEraserEnd(e: PointerEvent) {
   return e.pointerType === 'pen' && (e.button === 5 || (e.buttons & 32) !== 0)
 }
 
+/**
+ * Which side button is held: 1 = main barrel button (reported as the right
+ * button), 2 = second barrel button (reported as the middle button by pen
+ * drivers that pass it through), 0 = none.
+ */
+function sideButton(e: PointerEvent): 0 | 1 | 2 {
+  if (e.pointerType !== 'pen') return 0
+  if (e.button === 2 || (e.buttons & 2) !== 0) return 1
+  if (e.button === 1 || (e.buttons & 4) !== 0) return 2
+  return 0
+}
+
+function presetFor(action: PenButtonAction): ToolPreset | null {
+  const tools = getSettings().tools
+  if (action === 'eraser') return tools.find((t) => t.kind === 'eraser') ?? DEFAULT_ERASER
+  if (action === 'lasso') return tools.find((t) => t.kind === 'lasso') ?? DEFAULT_LASSO
+  if (action === 'highlighter') return tools.find((t) => t.kind === 'highlighter') ?? DEFAULT_HIGHLIGHTER
+  return null
+}
+
+/** Tool chosen by the pen hardware itself (eraser end, side buttons), if any. */
+function hardwareTool(e: PointerEvent): ToolPreset | 'passthrough' | null {
+  if (isEraserEnd(e)) return presetFor('eraser')
+  const b = sideButton(e)
+  if (!b) return null
+  const s = getSettings()
+  const action = b === 1 ? s.penButton1 : s.penButton2
+  return presetFor(action) ?? 'passthrough'
+}
+
 function toolFor(e: PointerEvent): ToolPreset | null {
   const s = getSettings()
-  if (isEraserEnd(e)) return s.tools.find((t) => t.kind === 'eraser') ?? DEFAULT_ERASER
+  const hw = hardwareTool(e)
+  if (hw === 'passthrough') return null
+  if (hw) return hw
   const tool = activeTool(s)
   if (tool) return tool
   if (e.pointerType === 'pen' && s.penAlwaysDraws) {
@@ -63,6 +100,7 @@ export function attachInkInput(page: HTMLElement, pageSurface: () => InkSurface 
   let lastPen = 0
   let suppressClick = false
   let penNearTimer = 0
+  let lastSideButton = 0
 
   const penNear = () => {
     lastPen = performance.now()
@@ -83,11 +121,16 @@ export function attachInkInput(page: HTMLElement, pageSurface: () => InkSurface 
       }
     }
     if (e.pointerType === 'mouse' && e.button !== 0) return
-    const tool = toolFor(e)
+    if (sideButton(e)) lastSideButton = performance.now()
+    let tool = toolFor(e)
     if (!tool) return
     if (active) return
+    const hardware = hardwareTool(e) !== null
     // Graphs: with the text tool selected, the pen pans/drags the graph instead of inking.
-    if (!activeTool(s) && !isEraserEnd(e) && (e.target as HTMLElement).closest('[data-ink-passive]')) return
+    if (!activeTool(s) && !hardware && (e.target as HTMLElement).closest('[data-ink-passive]')) return
+    // Pen tip on a lasso selection drags it (e.g. after lassoing with the side button).
+    const sel = selectionSurface()
+    if (sel && !hardware && (tool.kind === 'pen' || tool.kind === 'highlighter') && sel.hitsSelection(e)) tool = presetFor('lasso')!
     e.preventDefault()
     e.stopPropagation()
     const surface = canvasSurfaceAt(e.clientX, e.clientY) ?? pageSurface()
@@ -110,7 +153,7 @@ export function attachInkInput(page: HTMLElement, pageSurface: () => InkSurface 
       active.surface.move(events.length ? events : [e])
       return
     }
-    if (!active && e.pointerType === 'pen' && e.buttons === 0) {
+    if (!active && e.pointerType === 'pen' && (e.buttons & 1) === 0) {
       const surface = canvasSurfaceAt(e.clientX, e.clientY) ?? pageSurface()
       surface?.hover(e, toolFor(e))
     }
@@ -147,6 +190,10 @@ export function attachInkInput(page: HTMLElement, pageSurface: () => InkSurface 
   const onMouseDown = () => {
     suppressClick = false
   }
+  // Windows turns a side-button press into a right-click; don't show a menu when we used it.
+  const onContextMenu = (e: MouseEvent) => {
+    if (performance.now() - lastSideButton < 1500) e.preventDefault()
+  }
 
   page.addEventListener('pointerdown', onDown, true)
   page.addEventListener('pointermove', onMove, true)
@@ -155,7 +202,9 @@ export function attachInkInput(page: HTMLElement, pageSurface: () => InkSurface 
   page.addEventListener('pointerleave', onLeave)
   page.addEventListener('click', onClick, true)
   page.addEventListener('mousedown', onMouseDown, true)
+  page.addEventListener('contextmenu', onContextMenu, true)
   return () => {
+    page.removeEventListener('contextmenu', onContextMenu, true)
     page.removeEventListener('pointerdown', onDown, true)
     page.removeEventListener('pointermove', onMove, true)
     page.removeEventListener('pointerup', onUp, true)

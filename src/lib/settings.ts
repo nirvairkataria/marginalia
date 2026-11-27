@@ -8,6 +8,8 @@ import type { ToolPreset } from '../ink/types'
 
 export type ThemeSetting = 'system' | 'light' | 'dark'
 export type ToolbarPosition = 'top' | 'bottom' | 'left' | 'right'
+/** What holding a pen side button does. 'none' leaves it to Windows (right-click). */
+export type PenButtonAction = 'eraser' | 'lasso' | 'highlighter' | 'none'
 
 export interface Settings {
   theme: ThemeSetting
@@ -20,6 +22,10 @@ export interface Settings {
   /** Invert ink lightness in dark mode so black ink stays readable. */
   adaptInkToDark: boolean
   toolbarPosition: ToolbarPosition
+  /** Main (lower) side button */
+  penButton1: PenButtonAction
+  /** Second (upper) side button, on pens that have one */
+  penButton2: PenButtonAction
   tools: ToolPreset[]
   /** null = text tool */
   activeToolId: string | null
@@ -53,6 +59,8 @@ const DEFAULTS: Settings = {
   touchDraws: false,
   adaptInkToDark: true,
   toolbarPosition: 'top',
+  penButton1: 'eraser',
+  penButton2: 'lasso',
   tools: DEFAULT_TOOLS,
   activeToolId: null,
   lastInkToolId: 'pen-black',
