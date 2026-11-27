@@ -45,7 +45,8 @@ Marginalia combines a structured, StemPad-style note editor (inline LaTeX, displ
   - Define and reuse things: `f(x)=…`, constants, `f'(x)`, sums, integrals, `\frac{d}{dx}`.
   - Undefined letters offer **add slider** buttons. Sliders can animate, and points like `(a,b)` can be dragged to move their sliders.
   - Click a curve to see its roots, extrema and intersections, plus a trace point.
-  - **Tables** (＋ → Table) plot points; **regressions** like `y_1 ~ m x_1 + b` or `y_1 ~ a e^{k x_1}` fit the data and show R² (fitted values can be used elsewhere).
+  - **Publish to a website** (⋯ → Publish to website…): a published note becomes a static web page that looks exactly like the note (maths, code, graphs, drawings, ink). Pages are committed to a GitHub repository of yours (one commit per publish, using a fine-grained token stored only on your device) and served free by GitHub Pages or Cloudflare Pages with no build step; or written to a folder. The home page lists published notes grouped by folder (course).
+- **Tables** (＋ → Table) plot points; **regressions** like `y_1 ~ m x_1 + b` or `y_1 ~ a e^{k x_1}` fit the data and show R² (fitted values can be used elsewhere).
   - **Geometry:** named points `A=(1,2)` you can drag, `segment(A,B)`, `line`, `ray`, `circle(A,r)`, `polygon(A,B,C)`, `midpoint(A,B)`, `distance(A,B)`, `tangent(f,a)`, and `A.x`. Lists: `L=[1,2,3]`, `mean(L)`, `total(L)`… Points can show labels.
   - Pan, zoom, full screen, degrees/radians, dark mode.
 - **Run code.** ▶ Run (or **Shift+Enter**) on a Python or JavaScript block. Python runs offline in a bundled interpreter (Pyodide); numpy, matplotlib and other packages download on first import. Output, including plots, appears in a side panel and is never saved into the note.
@@ -61,6 +62,7 @@ Marginalia combines a structured, StemPad-style note editor (inline LaTeX, displ
 - **Export** (⋯ menu, top right of a note):
   - **PDF** on Letter pages via the print dialog. Page ink is printed inside the block it's attached to, so it stays put across page breaks; breaks avoid splitting equations, code, images, graphs and slides.
   - **Markdown** (`.md`, or `.zip` with an `assets/` folder): LaTeX stays LaTeX; drawings and graphs become SVG, PDF pages become PNGs with your ink.
+- **Publish to a website** (⋯ → Publish to website…): a published note becomes a static web page that looks exactly like the note (maths, code, graphs, drawings, ink). Pages are committed to a GitHub repository of yours (one commit per publish, using a fine-grained token stored only on your device) and served free by GitHub Pages or Cloudflare Pages with no build step; or written to a folder. The home page lists published notes grouped by folder (course).
 - **Tables** (`/table`, or Markdown tables), with resizable columns.
 - **Folders and search.** Organise notes into folders (e.g. one per course), drag notes between them, and search titles and full text (Ctrl+K).
 - Light and dark themes (system, or forced in Settings). Ink adapts so black ink stays readable on dark paper.

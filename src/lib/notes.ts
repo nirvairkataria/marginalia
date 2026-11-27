@@ -27,6 +27,8 @@ export interface NoteMeta {
   seed?: 'welcome'
   /** Created by the app and not edited yet (an untouched welcome note). */
   pristine?: boolean
+  /** Published to the website: its address under notes/ and when it was last published. */
+  publish?: { slug: string; at: number }
 }
 
 const indexDoc = new Y.Doc()
@@ -74,6 +76,7 @@ export function updateNote(id: string, patch: Partial<NoteMeta>) {
   const next = { ...current, ...patch }
   if ('seed' in patch && patch.seed === undefined) delete next.seed
   if ('pristine' in patch && !patch.pristine) delete next.pristine
+  if ('publish' in patch && !patch.publish) delete next.publish
   if ('folder' in patch) next.folder = normalizeFolder(patch.folder)
   // Avoid churn: Y.Map writes always create history.
   if (JSON.stringify(next) === JSON.stringify(current)) return

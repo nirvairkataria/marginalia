@@ -131,7 +131,14 @@ export function Sidebar({ notes, activeId, onSelect, onCreate, onDelete, onSetti
       }}
     >
       <button className="note-open" onClick={() => onSelect(note.id)}>
-        <span className="note-title">{note.title}</span>
+        <span className="note-title">
+          {note.publish && (
+            <span className="published-dot" title="Published on your website">
+              🌐
+            </span>
+          )}
+          {note.title}
+        </span>
         {snippet !== undefined ? (
           <span className="note-snippet">
             {note.folder ? <span className="note-folder">{note.folder} · </span> : null}

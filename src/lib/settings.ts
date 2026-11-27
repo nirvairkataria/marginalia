@@ -11,6 +11,19 @@ export type ToolbarPosition = 'top' | 'bottom' | 'left' | 'right'
 /** What holding a pen side button does. 'none' leaves it to Windows (right-click). */
 export type PenButtonAction = 'eraser' | 'lasso' | 'highlighter' | 'none'
 
+export interface SiteSettings {
+  title: string
+  /** Where published pages go */
+  target: 'github' | 'folder'
+  /** GitHub: owner/name */
+  repo: string
+  branch: string
+  /** Public address of the site, e.g. https://you.github.io/notes/ */
+  baseUrl: string
+  /** Desktop: folder to write the site into */
+  folder?: string
+}
+
 export interface Settings {
   theme: ThemeSetting
   /** 'latex': raw LaTeX box front and centre. 'visual': Word-style typing, LaTeX hidden. */
@@ -27,6 +40,7 @@ export interface Settings {
   /** Second (upper) side button, on pens that have one */
   penButton2: PenButtonAction
   tools: ToolPreset[]
+  site: SiteSettings
   /** null = text tool */
   activeToolId: string | null
   /** Tool used when a pen touches down while the text tool is active */
@@ -62,6 +76,7 @@ const DEFAULTS: Settings = {
   penButton1: 'eraser',
   penButton2: 'lasso',
   tools: DEFAULT_TOOLS,
+  site: { title: 'My notes', target: 'github', repo: '', branch: 'main', baseUrl: '' },
   activeToolId: null,
   lastInkToolId: 'pen-black',
 }

@@ -35,7 +35,11 @@ function inkSvg(strokes: Stroke[], dx: number, dy: number, width: number): SVGSV
   return svg
 }
 
-export async function printNote(page: HTMLElement, doc: Y.Doc): Promise<void> {
+/**
+ * A static copy of the page with page ink redrawn inside the blocks it's
+ * anchored to. Shared by PDF export and website publishing.
+ */
+export async function snapshotPage(page: HTMLElement, doc: Y.Doc): Promise<HTMLElement> {
   await renderAllPdfPagesForPrint()
   await document.fonts?.ready
 
@@ -97,6 +101,12 @@ export async function printNote(page: HTMLElement, doc: Y.Doc): Promise<void> {
     )
     clone.appendChild(svg)
   }
+
+  return clone
+}
+
+export async function printNote(page: HTMLElement, doc: Y.Doc): Promise<void> {
+  const clone = await snapshotPage(page, doc)
 
   // 3. Print it (light theme, nothing but the page)
   const root = document.createElement('div')
