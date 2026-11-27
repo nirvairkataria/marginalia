@@ -7,11 +7,11 @@ import { InkOverlay } from './ink/InkOverlay'
 import { redo, undo } from './ink/undo'
 import { setPageZoom } from './ink/zoom'
 import { activeTool, useSettings } from './lib/settings'
-import { setRunnerOpen, useRunner } from './runner/runner'
-import { GearIcon, TerminalIcon } from './ui/icons'
 import { InkToolbar } from './ui/InkToolbar'
 import { OutputPanel } from './ui/OutputPanel'
 import { SettingsDialog } from './ui/SettingsDialog'
+import { Sidebar } from './ui/Sidebar'
+import { startLibrary } from './lib/library/sync'
 import { createNote, deleteNote, ensureFirstNote, useNoteDoc, useNotes, type NoteMeta } from './lib/notes'
 
 /**
@@ -39,70 +39,6 @@ function writeLastNote(id: string) {
   } catch {
     /* storage unavailable: not important */
   }
-}
-
-function relativeTime(ts: number): string {
-  const s = Math.round((Date.now() - ts) / 1000)
-  if (s < 60) return 'just now'
-  const m = Math.round(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.round(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.round(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(ts).toLocaleDateString()
-}
-
-function Sidebar({
-  notes,
-  activeId,
-  onSelect,
-  onCreate,
-  onDelete,
-  onSettings,
-}: {
-  notes: NoteMeta[]
-  activeId: string | null
-  onSelect: (id: string) => void
-  onCreate: () => void
-  onDelete: (note: NoteMeta) => void
-  onSettings: () => void
-}) {
-  const runnerOpen = useRunner().open
-  return (
-    <aside className="sidebar">
-      <div className="brand">
-        <span className="brand-mark" aria-hidden>
-          ✎
-        </span>
-        Marginalia
-      </div>
-      <button className="new-note" onClick={onCreate}>
-        <span aria-hidden>＋</span> New note
-      </button>
-      <nav className="note-list" aria-label="Notes">
-        {notes.map((note) => (
-          <div key={note.id} className={`note-row${note.id === activeId ? ' active' : ''}`}>
-            <button className="note-open" onClick={() => onSelect(note.id)}>
-              <span className="note-title">{note.title}</span>
-              <span className="note-time">{relativeTime(note.updatedAt)}</span>
-            </button>
-            <button className="note-delete" title="Delete note" aria-label={`Delete ${note.title}`} onClick={() => onDelete(note)}>
-              ×
-            </button>
-          </div>
-        ))}
-      </nav>
-      <div className="sidebar-footer">
-        <button className="footer-btn" onClick={onSettings}>
-          <GearIcon /> Settings
-        </button>
-        <button className="footer-btn" onClick={() => setRunnerOpen(!runnerOpen)}>
-          <TerminalIcon /> Output
-        </button>
-      </div>
-    </aside>
-  )
 }
 
 /** Scales the fixed-width page down when the window is narrower than it. */
@@ -138,7 +74,10 @@ export default function App() {
   const inkTool = activeTool(settings)
 
   useEffect(() => {
-    ensureFirstNote().then(() => setReady(true))
+    ensureFirstNote().then(() => {
+      setReady(true)
+      void startLibrary()
+    })
   }, [])
 
   useEffect(() => setPageZoom(zoom), [zoom])
@@ -194,7 +133,7 @@ export default function App() {
         notes={notes}
         activeId={activeId}
         onSelect={setActiveId}
-        onCreate={() => setActiveId(createNote().id)}
+        onCreate={(folder) => setActiveId(createNote({ folder }).id)}
         onDelete={handleDelete}
         onSettings={() => setSettingsOpen(true)}
       />
