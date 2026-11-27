@@ -2276,3 +2276,176 @@ dialog.settings::backdrop {
   min-width: 0;
   flex: 1;
 }
+
+/* ---------- Images ---------- */
+
+.image-block {
+  position: relative;
+  margin: 1em auto;
+  max-width: 100%;
+  display: table;
+  border-radius: 6px;
+}
+
+.image-block img {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+.image-block.loading {
+  min-height: 80px;
+  min-width: 160px;
+  background: var(--code-bg);
+}
+
+.image-block[data-align='left'] {
+  float: left;
+  margin: 0.3em 1.4em 0.8em 0;
+}
+
+.image-block[data-align='right'] {
+  float: right;
+  margin: 0.3em 0 0.8em 1.4em;
+}
+
+.image-block:hover,
+.image-block.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.image-block:hover .canvas-controls,
+.image-block.ProseMirror-selectednode .canvas-controls {
+  opacity: 1;
+}
+
+.image-block:hover .canvas-resize {
+  opacity: 1;
+}
+
+.image-resize {
+  top: 50%;
+  right: -5px;
+  width: 10px;
+  height: 44px;
+  margin-top: -22px;
+  border-radius: 5px;
+  background: var(--accent);
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.image-block[data-align='right'] .image-resize {
+  right: auto;
+  left: -5px;
+}
+
+/* ---------- PDF pages ---------- */
+
+.pdf-page {
+  position: relative;
+  margin: 1.2em -40px;
+  clear: both;
+}
+
+.pdf-surface {
+  position: relative;
+  width: 100%;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px var(--rule),
+    0 4px 16px rgba(20, 20, 30, 0.08);
+  overflow: hidden;
+}
+
+.pdf-canvas,
+.pdf-surface .ink-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pdf-page:not(.rendered) .pdf-surface::after {
+  content: 'Loading page…';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #9aa3ae;
+  font: 13px var(--font-ui);
+}
+
+.pdf-page.failed .pdf-surface::after {
+  content: 'This page could not be displayed';
+}
+
+.pdf-label {
+  position: absolute;
+  right: 6px;
+  bottom: -18px;
+  font: 11px var(--font-ui);
+  color: var(--ink-faint);
+}
+
+.pdf-page.ProseMirror-selectednode .pdf-surface {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* ---------- Tables ---------- */
+
+.prose .tableWrapper {
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.prose table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  font-size: 0.95em;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--rule);
+  padding: 5px 9px;
+  vertical-align: top;
+  position: relative;
+  min-width: 2em;
+}
+
+.prose th {
+  background: var(--code-bg);
+  font-weight: 600;
+  text-align: left;
+}
+
+.prose td > p,
+.prose th > p {
+  margin: 0;
+}
+
+.prose .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent-soft);
+  pointer-events: none;
+}
+
+.prose .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.prose.resize-cursor {
+  cursor: col-resize;
+}

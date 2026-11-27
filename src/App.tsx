@@ -11,6 +11,7 @@ import { InkToolbar } from './ui/InkToolbar'
 import { OutputPanel } from './ui/OutputPanel'
 import { SettingsDialog } from './ui/SettingsDialog'
 import { Sidebar } from './ui/Sidebar'
+import { importFiles, IMPORT_ACCEPT } from './lib/importers'
 import { startLibrary } from './lib/library/sync'
 import { createNote, deleteNote, ensureFirstNote, useNoteDoc, useNotes, type NoteMeta } from './lib/notes'
 
@@ -134,6 +135,19 @@ export default function App() {
         activeId={activeId}
         onSelect={setActiveId}
         onCreate={(folder) => setActiveId(createNote({ folder }).id)}
+        onImport={(folder, files) => {
+          const run = async (list: File[]) => {
+            const id = await importFiles(list, folder, editor)
+            if (id) setActiveId(id)
+          }
+          if (files) return void run(files)
+          const input = document.createElement('input')
+          input.type = 'file'
+          input.multiple = true
+          input.accept = IMPORT_ACCEPT
+          input.onchange = () => input.files?.length && void run([...input.files])
+          input.click()
+        }}
         onDelete={handleDelete}
         onSettings={() => setSettingsOpen(true)}
       />

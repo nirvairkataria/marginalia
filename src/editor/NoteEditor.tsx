@@ -1,21 +1,11 @@
-import Collaboration from '@tiptap/extension-collaboration'
-import Placeholder from '@tiptap/extension-placeholder'
-import TaskItem from '@tiptap/extension-task-item'
-import TaskList from '@tiptap/extension-task-list'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
 import { ySyncPluginKey } from '@tiptap/y-tiptap'
 import { useEffect, useRef } from 'react'
 import type * as Y from 'yjs'
 import { bindUndoEditor } from '../ink/undo'
 import { getNote, SEARCH_TEXT_LIMIT, updateNote } from '../lib/notes'
-import { BlockIds } from './blockIds'
-import { CanvasBlock } from './canvasBlock'
-import { GraphBlock } from './graphBlock'
-import { CodeBlockCM, ensureLanguageDatalist } from './codeBlock'
-import { MarkdownBlockShortcuts } from './markdownShortcuts'
-import { BlockMath, InlineMath } from './math'
-import { SlashCommand } from './slashCommand'
+import { ensureLanguageDatalist } from './codeBlock'
+import { editorExtensions } from './extensions'
 import { WELCOME_HTML } from './welcome'
 
 function deriveTitle(editor: Editor): string {
@@ -37,28 +27,7 @@ export function NoteEditor({ noteId, ydoc, onReady }: { noteId: string; ydoc: Y.
 
   const editor = useEditor(
     {
-      extensions: [
-        StarterKit.configure({
-          undoRedo: false, // Yjs provides undo/redo
-          codeBlock: false, // replaced by CodeMirror-backed block
-          link: { openOnClick: false, autolink: true },
-        }),
-        Collaboration.configure({ document: ydoc, field: 'content' }),
-        Placeholder.configure({
-          placeholder: ({ node }) =>
-            node.type.name === 'heading' ? 'Heading' : "Write, use Markdown, or type '/' for blocks…",
-        }),
-        TaskList,
-        TaskItem.configure({ nested: true }),
-        CodeBlockCM,
-        InlineMath,
-        BlockMath,
-        CanvasBlock.configure({ doc: ydoc }),
-        GraphBlock,
-        BlockIds,
-        MarkdownBlockShortcuts,
-        SlashCommand,
-      ],
+      extensions: editorExtensions(ydoc),
       editorProps: { attributes: { class: 'prose', spellcheck: 'true' } },
       onCreate: ({ editor }) => {
         const meta = getNote(noteId)
@@ -87,6 +56,7 @@ export function NoteEditor({ noteId, ydoc, onReady }: { noteId: string; ydoc: Y.
   useEffect(() => {
     onReady?.(editor)
     bindUndoEditor(editor)
+    if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__marginaliaEditor = editor
     return () => {
       onReady?.(null)
       bindUndoEditor(null)
