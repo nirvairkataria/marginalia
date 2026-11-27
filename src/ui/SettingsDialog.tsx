@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react'
+import { chooseLibraryFolder, disconnectLibrary, enableDesktopLibrary, libraryAvailable, syncNow, useLibrary } from '../lib/library/sync'
+import { isDesktop } from '../lib/library/backends'
 import { updateSettings, useSettings, type PenButtonAction, type Settings } from '../lib/settings'
 
 function Choice<K extends keyof Settings>({ name, value, options }: { name: K; value: Settings[K]; options: { value: Settings[K]; label: string }[] }) {
@@ -33,6 +35,33 @@ function Toggle({ name, label, hint }: { name: 'penAlwaysDraws' | 'touchDraws' |
   )
 }
 
+function LibrarySection() {
+  const lib = useLibrary()
+  if (!libraryAvailable()) return null
+  const on = lib.status !== 'off'
+  return (
+    <section>
+      <h3>Library folder</h3>
+      <div className="setting-row">
+        <span className="library-path" title={lib.label}>
+          {on ? lib.label : 'Notes are only stored inside the app'}
+        </span>
+        <div className="seg">
+          <button onClick={() => void chooseLibraryFolder()}>{on ? 'Change…' : 'Choose folder…'}</button>
+          {on && <button onClick={() => void syncNow()}>Sync now</button>}
+          {on && <button onClick={() => window.confirm('Stop saving notes to this folder? Your notes stay in the app, and the files stay in the folder.') && void disconnectLibrary()}>Turn off</button>}
+          {!on && isDesktop() && <button onClick={() => void enableDesktopLibrary()}>Use Documents\Marginalia</button>}
+        </div>
+      </div>
+      <p className="setting-hint">
+        Every note is saved as a <code>.marginalia</code> file in this folder, and folders in the sidebar are folders on disk. Put it in OneDrive (or Dropbox, Google
+        Drive…) to back up your notes and use them on several computers: edits from different devices are merged, not overwritten. Moving or deleting files in
+        Explorer moves or deletes the notes.
+      </p>
+    </section>
+  )
+}
+
 export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const s = useSettings()
   const ref = useRef<HTMLDialogElement>(null)
@@ -53,6 +82,8 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
             ×
           </button>
         </header>
+
+        <LibrarySection />
 
         <section>
           <h3>Appearance</h3>
