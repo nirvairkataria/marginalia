@@ -8,6 +8,7 @@ import { redo, undo } from './ink/undo'
 import { setPageZoom } from './ink/zoom'
 import { activeTool, useSettings } from './lib/settings'
 import { InkToolbar } from './ui/InkToolbar'
+import { NoteMenu } from './ui/NoteMenu'
 import { OutputPanel } from './ui/OutputPanel'
 import { SettingsDialog } from './ui/SettingsDialog'
 import { Sidebar } from './ui/Sidebar'
@@ -162,6 +163,7 @@ export default function App() {
             ☰
           </button>
           <InkToolbar onInsertCanvas={insertCanvas} />
+          <NoteMenu editor={editor} doc={ydoc} title={notes.find((n) => n.id === activeId)?.title ?? 'Note'} pageRef={pageRef} />
           <div className="scroller" ref={scrollerRef}>
             <div className={pageClass} ref={pageRef} style={{ width: PAGE_WIDTH, zoom }}>
               {activeId && ydoc ? (
